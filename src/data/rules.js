@@ -1,404 +1,120 @@
-// Motor de Regras de Documentação, Enquadramento e Cálculo Tributário (TFLIF / URM)
-// Prefeitura Municipal de Bento Gonçalves / RS
-
+// Motor de consolidação da REDESIM — Bento Gonçalves/RS
+// Regra central: os PDFs definem documentos; as tabelas definem a necessidade e o nível das licenças.
 import { obterDocsPorAtividade } from './atividadesDocs.js';
 
-export const VALOR_URM_ATUAL = 187.03; // Definido oficialmente para Bento Gonçalves
+export const VALOR_URM_ATUAL = 187.03;
 
-export function calcularEnquadramento(
-  cnaesSelecionados, 
-  respostasPerguntas = {}, 
-  tipoEstabelecimento = 'ponto_fixo',
-  isMei = false
-) {
-  if (!cnaesSelecionados || cnaesSelecionados.length === 0) {
-    return null;
-  }
+const RISCO = { NA: 0, I: 1, II: 2, III: 3, P: 3 };
 
-  const isPontoReferencia = tipoEstabelecimento === 'ponto_referencia';
-  const cleanCodes = cnaesSelecionados.map(c => c.clean_code);
+function normalizarPergunta(texto = '') {
+  const s = texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  if (s.includes('1000') && s.includes('area')) return 'area_1000m2';
+  if (s.includes('2500') && s.includes('area')) return 'area_2500m2';
+  if (s.includes('250') && s.includes('area')) return 'area_250m2';
+  if (s.includes('500') && (s.includes('supermercado') || s.includes('shopping'))) return 'area_supermercado_500m2';
+  if (s.includes('produto artesanal')) return 'produto_artesanal';
+  return s;
+}
 
-  // 1. Cálculo Tributário TFLIF (Art. 195 a 197 LC 183/2013)
-  // Alíquota máxima entre as atividades selecionadas (§ 2° do Art. 197)
-  let aliquotaTflif = 2.0;
-  let setorDominante = 'Comércio/Serviços';
-  let maiorGrauRiscoFiscal = 'Baixo Risco A';
-  let cnaeMaiorTaxa = cnaesSelecionados[0];
-
-  cnaesSelecionados.forEach((c) => {
-    const aliq = c.aliquota_tflif !== undefined ? c.aliquota_tflif : 2.0;
-    if (aliq > aliquotaTflif) {
-      aliquotaTflif = aliq;
-      setorDominante = c.setor || setorDominante;
-      maiorGrauRiscoFiscal = c.grau_risco_fiscal || maiorGrauRiscoFiscal;
-      cnaeMaiorTaxa = c;
-    }
+function respostaDaPergunta(perguntas, respostas, fallbackSource) {
+  return perguntas.map((p) => {
+    const chave = normalizarPergunta(p.pergunta);
+    const resposta = respostas[chave] ?? respostas[`${fallbackSource}_${p.id}`];
+    if (resposta === undefined) return { ...p, chave, resposta: undefined, risco: 3, maiorPotencial: true };
+    const valor = String(resposta).toUpperCase();
+    const grau = p.respostas?.[valor]?.grau || (valor === 'SIM' ? 'III' : 'I');
+    return { ...p, chave, resposta: valor, risco: RISCO[grau] ?? 1, grau, maiorPotencial: false };
   });
+}
 
-  // Valor em Reais da TFLIF: (aliquota % * URM)
-  // Nota: MEI é isento conforme Art. 196 da LC 183/2013
-  // A alíquota na tabela municipal expressa o múltiplo de URM (ex: 2 = 200% = 2 URMs; 3 = 300% = 3 URMs)
-  // Art. 197 LC 183/2013: Indústria, Comércio e Serviços = 200% (2 URMs); Construção/Postos = 300% (3 URMs)
-  const qtdUrm = aliquotaTflif >= 10 ? (aliquotaTflif / 100) : aliquotaTflif;
-  const percentualUrm = qtdUrm * 100;
-  const valorTflifReais = isMei ? 0.0 : (qtdUrm * VALOR_URM_ATUAL);
+function inserirUnico(lista, item) {
+  if (!lista.some((x) => x.nome === item.nome)) lista.push(item);
+}
 
-  // 2. Análise de EIV (Anexo 9.1 do Plano Diretor)
-  const eivItens = cnaesSelecionados
-    .filter(c => c.eiv && c.eiv.sujeito)
-    .map(c => ({
-      cnae: c.cnae,
-      descricao: c.descricao,
-      enquadramento: c.eiv.enquadramento_legal,
-      grauRisco: c.eiv.grau_risco
-    }));
+function categoriaDocumento(nome, detalhe, obrigatorio = true, fonte = '') {
+  return { nome, detalhe, obrigatorio, fonte };
+}
 
-  const sujeitoEiv = eivItens.length > 0;
+export function calcularEnquadramento(cnaesSelecionados, respostasPerguntas = {}, tipoEstabelecimento = 'ponto_fixo', isMei = false) {
+  if (!cnaesSelecionados?.length) return null;
+  const pontoReferencia = tipoEstabelecimento === 'ponto_referencia';
+  const cleanCodes = cnaesSelecionados.map((c) => c.clean_code);
 
-  // 3. Caso seja PONTO DE REFERÊNCIA
-  if (isPontoReferencia) {
+  // TFLIF: a coluna da planilha usa múltiplos de URM (2 = 200% = 2 URMs).
+  const cnaeTaxa = cnaesSelecionados.reduce((maior, c) => (Number(c.aliquota_tflif ?? 2) > Number(maior.aliquota_tflif ?? 2) ? c : maior), cnaesSelecionados[0]);
+  const qtdUrm = Number(cnaeTaxa.aliquota_tflif ?? 2) >= 10 ? Number(cnaeTaxa.aliquota_tflif) / 100 : Number(cnaeTaxa.aliquota_tflif ?? 2);
+  const valorTflif = isMei ? 0 : qtdUrm * VALOR_URM_ATUAL;
+
+  if (pontoReferencia) {
     return {
-      tipoEstabelecimento: 'ponto_referencia',
-      nivelRiscoGeral: 'I',
-      tituloRisco: 'Baixo Risco (Nível I) - Ponto de Referência',
-      elegivelUmaHora: true,
-      descricaoRisco: 'Ponto de referência/endereço fiscal sem circulação de público e sem estoque. Dispensado de Habite-se comercial, PPCI, alvará sanitário e licenciamento ambiental no local. Elegível para abertura imediata em até 1 hora na REDESIM.',
-      temRiscoIII_Visa: false,
-      temRiscoII_Visa: false,
-      temRiscoIII_Smmam: false,
-      temRiscoII_Smmam: false,
-      sujeitoEiv: false,
-      eivItens: [],
-      tributario: {
-        valorUrm: VALOR_URM_ATUAL,
-        aliquotaPercentual: percentualUrm,
-        qtdUrm: qtdUrm,
-        valorTflif: valorTflifReais,
-        isMei,
-        setor: setorDominante,
-        cnaeBaseTaxa: cnaeMaiorTaxa.cnae,
-        baseLegal: 'Art. 195 a 197 da LC 183/2013 e LC 123/2006 (MEI)'
-      },
-      orientacoesVisa: ['Dispensado de alvará sanitário no local por se tratar exclusivamente de ponto de referência/endereço fiscal.'],
-      orientacoesSmmam: ['Dispensado de licenciamento ambiental por não haver atividade potencialmente poluidora no local.'],
-      perguntasPendentes: [],
-      documentos: [
-        {
-          categoria: 'Documentação Obrigatória - Ponto de Referência (Base Oficial)',
-          obrigatorio: true,
-          alerta: 'Base: Ponto de Referência.pdf - Sala do Empreendedor',
-          itens: [
-            { nome: 'Comprovante de Residência Atualizado', detalhe: 'Conta de água, luz ou telefone recente em nome do sócio ou proprietário do imóvel.' },
-            { nome: 'Declaração de Ponto de Referência com Firma Reconhecida', detalhe: 'Atestando que o local servirá estritamente para correspondência e domicílio fiscal, sem atendimento presencial e sem depósito.' },
-            { nome: 'Contrato Social / Requerimento de Empresário / CCMEI', detalhe: 'Registrado na Junta Comercial (JUCISRS) ou Cartório com as devidas atividades.' },
-            { nome: 'Cartão do CNPJ', detalhe: 'Comprovante de inscrição e de situação cadastral na Receita Federal.' },
-            { nome: 'Boletim de Informações Econômicas (BIE)', detalhe: 'Preenchido e assinado pelo titular, sócio ou contador habilitado.' },
-            { nome: 'Cópia do Documento dos Sócios', detalhe: 'Cópia de RG/CPF ou CNH válida de todos os sócios e administradores.' }
-          ]
-        },
-        {
-          categoria: 'Isenções e Desonerações (REDESIM)',
-          obrigatorio: false,
-          alerta: 'Desburocratização Automática',
-          itens: [
-            { nome: 'Dispensa de Habite-se Comercial e Contrato de Locação Comercial', detalhe: 'Por não haver estabelecimento aberto ao público no imóvel residencial/referencial.' },
-            { nome: 'Dispensa de PPCI / Vistoria do Bombeiros no Endereço', detalhe: 'Conforme normas de domicílio fiscal do CBMRS.' },
-            { nome: 'Dispensa de Licença Sanitária e Licença Ambiental no Local', detalhe: 'Atividade operacional exercida externamente ou digitalmente.' }
-          ]
-        }
-      ]
+      tipoEstabelecimento: 'ponto_referencia', nivelRiscoGeral: 'I', tituloRisco: 'Ponto de Referência — documentação reduzida', elegivelUmaHora: true,
+      descricaoRisco: 'Endereço fiscal/correspondência sem atendimento, estoque ou operação no local.',
+      temRiscoIII_Visa: false, temRiscoII_Visa: false, temRiscoIII_Smmam: false, temRiscoII_Smmam: false,
+      sujeitoEiv: false, eivItens: [], perguntasPendentes: [], orientacoesVisa: [], orientacoesSmmam: [],
+      tributario: { valorUrm: VALOR_URM_ATUAL, qtdUrm, aliquotaPercentual: qtdUrm * 100, valorTflif, isMei, setor: cnaeTaxa.setor, cnaeBaseTaxa: cnaeTaxa.cnae, baseLegal: 'Art. 195 a 197 da LC 183/2013; MEI conforme Art. 196' },
+      documentos: [{ categoria: 'Ponto de Referência — PDF oficial', alerta: 'Documentos necessários', itens: [
+        categoriaDocumento('Comprovante de residência atualizado', 'Em nome do responsável/proprietário, conforme o modelo oficial.', true, 'Ponto de Referência.pdf'),
+        categoriaDocumento('Declaração de Ponto de Referência com firma reconhecida', 'Declaração de ausência de atendimento, estoque e operação no endereço.', true, 'Ponto de Referência.pdf'),
+        categoriaDocumento('Contrato social / requerimento de empresário / CCMEI', 'Ato constitutivo da empresa.', true, 'Ponto de Referência.pdf'),
+        categoriaDocumento('Cartão do CNPJ', 'Comprovante de inscrição e situação cadastral.', true, 'Ponto de Referência.pdf'),
+        categoriaDocumento('Boletim de Informações Econômicas preenchido e assinado', 'Formulário municipal.', true, 'Ponto de Referência.pdf'),
+        categoriaDocumento('Cópia dos documentos dos sócios', 'RG/CPF ou CNH.', true, 'Ponto de Referência.pdf')
+      ] }]
     };
   }
 
-  // --- SE FOR PONTO FIXO ---
-  let temRiscoIII_Visa = false;
-  let temRiscoII_Visa = false;
-  let temRiscoIII_Smmam = false;
-  let temRiscoII_Smmam = false;
-
+  const perguntas = new Map();
+  const visaResultados = [];
+  const smmamResultados = [];
   const orientacoesVisa = [];
   const orientacoesSmmam = [];
-  const perguntasPendentes = [];
-  const perguntasUnificadasMap = new Map();
 
-  cnaesSelecionados.forEach((item) => {
-    // 1. Processar VISA
-    const vRisco = item.visa?.risco || 'NA';
-    if (vRisco === 'III') {
-      temRiscoIII_Visa = true;
-    } else if (vRisco === 'II') {
-      temRiscoII_Visa = true;
-    } else if (vRisco === 'P') {
-      const pergs = item.visa?.perguntas || [];
-      pergs.forEach((p) => {
-        // Verificar se é pergunta de área/porte que pode ser unificada
-        const chaveUnificada = normalizarPergunta(p.pergunta);
-        const respostaExistente = respostasPerguntas[chaveUnificada] || respostasPerguntas[`visa_${p.id}`];
-
-        if (respostaExistente === undefined) {
-          if (!perguntasUnificadasMap.has(chaveUnificada)) {
-            perguntasUnificadasMap.set(chaveUnificada, {
-              chave: chaveUnificada,
-              idOriginal: `visa_${p.id}`,
-              origem: 'Vigilância Sanitária',
-              cnae: item.cnae,
-              pergunta: p.pergunta,
-              descritivo: p.descritivo,
-              tipo: 'visa'
-            });
-          }
-        } else {
-          // Aplicar resposta
-          const respUpper = respostaExistente.toUpperCase();
-          const infoResp = p.respostas?.[respUpper];
-          const grau = infoResp?.grau || (respUpper === 'SIM' ? 'III' : 'I');
-          if (grau === 'III') temRiscoIII_Visa = true;
-          else if (grau === 'II') temRiscoII_Visa = true;
-        }
-      });
-    }
-
-    if (item.visa?.orientacao && !orientacoesVisa.includes(item.visa.orientacao)) {
-      orientacoesVisa.push(item.visa.orientacao);
-    }
-
-    // 2. Processar SMMAM
-    const sRisco = item.smmam?.risco || 'NA';
-    if (sRisco === 'III') {
-      temRiscoIII_Smmam = true;
-    } else if (sRisco === 'II') {
-      temRiscoII_Smmam = true;
-    } else if (sRisco === 'P') {
-      const pergs = item.smmam?.perguntas || [];
-      pergs.forEach((p) => {
-        const chaveUnificada = normalizarPergunta(p.pergunta);
-        const respostaExistente = respostasPerguntas[chaveUnificada] || respostasPerguntas[`smmam_${p.id}`];
-
-        if (respostaExistente === undefined) {
-          if (!perguntasUnificadasMap.has(chaveUnificada)) {
-            perguntasUnificadasMap.set(chaveUnificada, {
-              chave: chaveUnificada,
-              idOriginal: `smmam_${p.id}`,
-              origem: 'Meio Ambiente (SMMAM)',
-              cnae: item.cnae,
-              pergunta: p.pergunta,
-              descritivo: p.descritivo,
-              tipo: 'smmam'
-            });
-          }
-        } else {
-          const respUpper = respostaExistente.toUpperCase();
-          const infoResp = p.respostas?.[respUpper];
-          const grau = infoResp?.grau || (respUpper === 'SIM' ? 'III' : 'I');
-          if (grau === 'III') temRiscoIII_Smmam = true;
-          else if (grau === 'II') temRiscoII_Smmam = true;
-        }
-      });
-    }
-
-    if (item.smmam?.orientacao && !orientacoesSmmam.includes(item.smmam.orientacao)) {
-      orientacoesSmmam.push(item.smmam.orientacao);
-    }
+  cnaesSelecionados.forEach((cnae) => {
+    const v = cnae.visa || { risco: 'NA', perguntas: [] };
+    const s = cnae.smmam || { risco: 'NA', perguntas: [] };
+    const vr = v.risco === 'P' ? respostaDaPergunta(v.perguntas || [], respostasPerguntas, 'visa') : [{ risco: RISCO[v.risco] ?? 0, grau: v.risco, resposta: 'TABELA' }];
+    const sr = s.risco === 'P' ? respostaDaPergunta(s.perguntas || [], respostasPerguntas, 'smmam') : [{ risco: RISCO[s.risco] ?? 0, grau: s.risco, resposta: 'TABELA' }];
+    vr.forEach((p) => { visaResultados.push({ ...p, cnae: cnae.cnae }); if (p.resposta === undefined) perguntas.set(p.chave, { ...p, origem: 'VISA', cnae: cnae.cnae }); });
+    sr.forEach((p) => { smmamResultados.push({ ...p, cnae: cnae.cnae }); if (p.resposta === undefined && !perguntas.has(p.chave)) perguntas.set(p.chave, { ...p, origem: 'SMMAM', cnae: cnae.cnae }); });
+    if (v.orientacao) inserirUnico(orientacoesVisa, { nome: cnae.cnae, detalhe: v.orientacao });
+    if (s.orientacao) inserirUnico(orientacoesSmmam, { nome: cnae.cnae, detalhe: s.orientacao });
   });
 
-  perguntasUnificadasMap.forEach(val => perguntasPendentes.push(val));
+  const maiorVisa = Math.max(0, ...visaResultados.map((p) => p.risco));
+  const maiorSmmam = Math.max(0, ...smmamResultados.map((p) => p.risco));
+  const perguntasPendentes = [...perguntas.values()];
+  const eivItens = cnaesSelecionados.filter((c) => c.eiv?.sujeito).map((c) => ({ cnae: c.cnae, descricao: c.descricao, enquadramento: c.eiv.enquadramento_legal, grauRisco: c.eiv.grau_risco }));
 
-  // Determinar Risco Geral Consolidado (Decreto 10.342/2019 / LLE)
-  let nivelRiscoGeral = 'I';
-  let tituloRisco = 'Baixo Risco (Nível I)';
-  let elegivelUmaHora = true;
-  let descricaoRisco = 'Ponto Fixo de Baixo Risco. Dispensado de alvará prévio e vistoria inicial. Abertura automatizada no portal da REDESIM em até 1 hora.';
-
-  if (temRiscoIII_Visa || temRiscoIII_Smmam) {
-    nivelRiscoGeral = 'III';
-    tituloRisco = 'Alto Risco (Nível III)';
-    elegivelUmaHora = false;
-    descricaoRisco = 'Ponto Fixo com atividade de Alto Risco em órgão licenciador. Exige vistorias prévias e licenças definitivas antes do início de operação.';
-  } else if (temRiscoII_Visa || temRiscoII_Smmam) {
-    nivelRiscoGeral = 'II';
-    tituloRisco = 'Médio Risco (Nível II)';
-    elegivelUmaHora = false;
-    descricaoRisco = 'Ponto Fixo de Médio Risco. Permite alvará provisório ou licenças simplificadas com fiscalização a posteriori.';
+  const documentos = [];
+  const docsAtividade = obterDocsPorAtividade(cleanCodes);
+  const docsPdf = docsAtividade.docs.map((d) => categoriaDocumento(d.nome, `${d.detalhe} Fonte: ${d.arquivoFonte}`, true, d.arquivoFonte));
+  // Para CNAE sem PDF específico, usa somente a lista-base do PDF Ponto Fixo Padrão.
+  if (!docsPdf.length) {
+    ['Habite-se', 'Contrato de locação (se for locado)', 'Contrato social', 'Cartão do CNPJ', 'PPCI ou certificado de conformidade', 'Boletim de Informações Econômicas preenchido e assinado', 'Cópia do documento dos sócios'].forEach((nome) => docsPdf.push(categoriaDocumento(nome, 'Documento listado no modelo Ponto Fixo Padrão.pdf.', true, 'Ponto Fixo Padrão.pdf')));
   }
+  documentos.push({ categoria: `Documentos dos PDFs de atividade${docsAtividade.titulos.length ? ` — ${docsAtividade.titulos.join(' / ')}` : ''}`, alerta: 'Lista final consolidada — sem seleção individual', itens: docsPdf });
 
-  // 4. Montagem das Categorias de Documentos
-  const docsAtividades = obterDocsPorAtividade(cleanCodes);
+  // As tabelas decidem se há licença. A listagem usa o maior potencial quando uma pergunta não foi respondida.
+  if (maiorVisa >= 3) documentos.push({ categoria: 'Vigilância Sanitária — Nível III', alerta: 'Licença obrigatória antes da operação', itens: [categoriaDocumento('Alvará de Autorização Sanitária (AAS)', 'Licença sanitária prévia conforme maior risco da tabela VISA.', true, 'Tabela_Licenc_v5B_-_VISA_Bento_Gonçalves.xlsx'), categoriaDocumento('Documentos sanitários complementares do PDF da atividade', 'Ex.: controle de pragas, limpeza de caixa d’água ou potabilidade, somente quando constarem do PDF aplicável.', true, 'PDF da atividade')] });
+  else if (maiorVisa === 2) documentos.push({ categoria: 'Vigilância Sanitária — Nível II', alerta: 'Licenciamento simplificado/provisório conforme tabela', itens: [categoriaDocumento('Licença/Alvará Sanitário conforme procedimento de Nível II', 'A validade e o procedimento seguem a tabela VISA; não presumir AAS definitivo.', true, 'Tabela VISA'), categoriaDocumento('Declarações e respostas sanitárias aplicáveis', 'Geradas a partir das perguntas oficiais respondidas.', true, 'Tabela VISA')] });
+  else documentos.push({ categoria: 'Vigilância Sanitária — Nível I/NA', alerta: 'Sem licença sanitária prévia pela classificação da tabela', itens: [categoriaDocumento('Dispensa/baixo risco sanitário', 'Resultado da tabela VISA; manter obrigações sanitárias gerais aplicáveis.', false, 'Tabela VISA')] });
 
-  const documentos = [
-    {
-      categoria: 'Cadastro e Imobiliário (Base: Ponto Fixo Padrão.pdf)',
-      obrigatorio: true,
-      alerta: 'Exigência Documental Municipal Básica',
-      itens: [
-        { nome: 'Habite-se Comercial, Matrícula Averbada ou Laudo Técnico (Dec. 10.342/2019)', detalhe: 'Comprovante oficial de conclusão e regularidade da construção para a finalidade comercial pretendida.' },
-        { nome: 'Contrato de Locação (se locado) ou Matrícula Atualizada do Imóvel', detalhe: 'Documento que autorize a ocupação do imóvel com firmas reconhecidas em cartório.' },
-        { nome: 'Contrato Social / Requerimento de Empresário / CCMEI', detalhe: 'Ato constitutivo ou de alteração registrado na JUCISRS ou Cartório competente.' },
-        { nome: 'Cartão do CNPJ', detalhe: 'Comprovante de Inscrição e Situação Cadastral atualizado emitido pela Receita Federal.' },
-        { nome: 'Boletim de Informações Econômicas (BIE)', detalhe: 'Requerimento padrão do Município de Bento Gonçalves preenchido e assinado.' },
-        { nome: 'Cópia de Documento de Identificação dos Sócios', detalhe: 'RG/CPF ou CNH válida de todos os integrantes do quadro societário.' }
-      ]
-    },
-    {
-      categoria: 'Prevenção Contra Incêndio (CBMRS / Bombeiros)',
-      obrigatorio: true,
-      alerta: 'Segurança contra Incêndio',
-      itens: [
-        { 
-          nome: 'Plano de Prevenção e Combate Contra Incêndio (PPCI) ou Certificado de Conformidade (CLCB)', 
-          detalhe: 'Protocolo de aprovação ou alvará do CBMRS com ART/RRT de projeto e execução.' 
-        }
-      ]
-    }
-  ];
+  if (maiorSmmam >= 3) documentos.push({ categoria: 'Meio Ambiente — Nível III', alerta: 'Licença ambiental obrigatória antes da operação', itens: [categoriaDocumento('Licença ambiental aplicável (LO/LP/LI)', 'Protocolar na SMMAM ou FEPAM conforme competência indicada pela tabela e pela Resolução CONSEMA nº 372/2018.', true, 'Tabela Licenciamento Ambiental - SMMAM.xlsx'), categoriaDocumento('Estudos, projetos e ART exigidos no processo ambiental', 'Somente os documentos definidos pelo órgão no licenciamento do CNAE/porte.', true, 'Tabela SMMAM')] });
+  else if (maiorSmmam === 2) documentos.push({ categoria: 'Meio Ambiente — Nível II', alerta: 'Licenciamento simplificado conforme tabela', itens: [categoriaDocumento('Licença Ambiental Simplificada (LAS) ou ato equivalente', 'A necessidade e o tipo seguem a tabela SMMAM e as respostas oficiais.', true, 'Tabela Licenciamento Ambiental - SMMAM.xlsx')] });
+  else documentos.push({ categoria: 'Meio Ambiente — Nível I/NA', alerta: 'Sem licença ambiental prévia pela classificação da tabela', itens: [categoriaDocumento('Dispensa/baixo risco ambiental', 'Resultado da tabela SMMAM; não substitui obrigações ambientais gerais.', false, 'Tabela SMMAM')] });
 
-  // Adicionar Documentos Específicos da Atividade extraídos dos PDFs
-  if (docsAtividades.docs.length > 0) {
-    documentos.push({
-      categoria: `Documentos Específicos da Atividade (${docsAtividades.titulos.join(' / ')})`,
-      obrigatorio: true,
-      alerta: 'Mapeado dos modelos específicos em PDF da Prefeitura',
-      itens: docsAtividades.docs.map(d => ({
-        nome: d.nome,
-        detalhe: `${d.detalhe} (Fonte: ${d.arquivoFonte})`
-      }))
-    });
-  }
+  if (eivItens.length) documentos.push({ categoria: 'Urbanismo — EIV/EII', alerta: 'Atividade listada no Anexo 9.1; análise urbanística necessária', itens: [categoriaDocumento('EIV/EII com ART — conforme análise do IPURB', `CNAEs enquadrados: ${eivItens.map((e) => `${e.cnae} (${e.enquadramento})`).join('; ')}. A exigência final depende da regra de porte, localização e zoneamento.`, true, 'Ferramenta_Tributaria_Bento_Goncalves.xlsx / LC 200/2018')] });
+  else documentos.push({ categoria: 'Urbanismo — EIV/EII', alerta: 'Sem enquadramento específico na tabela EIV', itens: [categoriaDocumento('EIV/EII', 'Não solicitado para os CNAEs selecionados pela tabela consultada.', false, 'Tabela Cnae X EIV')] });
 
-  // Vigilância Sanitária
-  if (temRiscoIII_Visa) {
-    documentos.push({
-      categoria: 'Vigilância Sanitária Municipal (VISA)',
-      obrigatorio: true,
-      alerta: 'Alto Risco Sanitário - Alvará Sanitário Prévio Obrigatório',
-      itens: [
-        { nome: 'Alvará de Autorização Sanitária (AAS)', detalhe: 'Vistoria sanitária prévia com processo integrado municipal antes do início das atividades.' },
-        { nome: 'Anotação de Responsabilidade Técnica (ART/CRT)', detalhe: 'Registro do profissional responsável perante o conselho de classe competente.' },
-        { nome: 'Manual de Boas Práticas e Procedimentos Operacionais Padronizados (POP)', detalhe: 'Instruções higiênico-sanitárias de manipulação e controle.' },
-        { nome: 'Laudo de Controle de Pragas e Vetores', detalhe: 'Certificado de dedetização e desratização emitido por empresa licenciada.' },
-        { nome: 'Laudo de Limpeza de Caixa d\'Água', detalhe: 'Comprovante semestral de desinfecção de reservatórios de água.' }
-      ]
-    });
-  } else if (temRiscoII_Visa) {
-    documentos.push({
-      categoria: 'Vigilância Sanitária Municipal (VISA)',
-      obrigatorio: false,
-      alerta: 'Médio Risco Sanitário - Alvará Provisório / Fiscalização Posterior',
-      itens: [
-        { nome: 'Declaração Eletrônica de Ciência e Responsabilidade Sanitária', detalhe: 'Emitida na viabilidade REDESIM com validade de até 12 meses.' },
-        { nome: 'Laudo de Controle de Pragas e Limpeza de Reservatórios', detalhe: 'Apresentado na vistoria de rotina da fiscalização sanitária.' }
-      ]
-    });
-  } else {
-    documentos.push({
-      categoria: 'Vigilância Sanitária Municipal (VISA)',
-      obrigatorio: false,
-      alerta: 'Baixo Risco Sanitário - Dispensado de Alvará Prévio',
-      itens: [
-        { nome: 'Dispensa Automática de Licenciamento Sanitário', detalhe: 'Atividade sem risco sanitário ou de baixo risco dispensada pela Lei da Liberdade Econômica.' }
-      ]
-    });
-  }
-
-  // Meio Ambiente (SMMAM / FEPAM)
-  if (temRiscoIII_Smmam) {
-    documentos.push({
-      categoria: 'Secretaria Municipal de Meio Ambiente (SMMAM / FEPAM)',
-      obrigatorio: true,
-      alerta: 'Alto Risco Ambiental - Licença Ambiental Obrigatória (CONSEMA 372/2018)',
-      itens: [
-        { nome: 'Licença de Operação (LO) ou Licença Prévia/Instalação (LP/LI)', detalhe: 'Protocolado no Portal do Cidadão de Bento Gonçalves ou na FEPAM conforme competência de impacto.' },
-        { nome: 'Plano de Controle Ambiental (PCA) com ART', detalhe: 'Projeto técnico de tratamento de efluentes, resíduos e controle de emissões.' },
-        { nome: 'Certidão de Zoneamento e Uso do Solo para fins Ambientais', detalhe: 'Expedida pelo IPURB.' }
-      ]
-    });
-  } else if (temRiscoII_Smmam) {
-    documentos.push({
-      categoria: 'Secretaria Municipal de Meio Ambiente (SMMAM)',
-      obrigatorio: false,
-      alerta: 'Médio Risco Ambiental - Licença Simplificada (LAS)',
-      itens: [
-        { nome: 'Licença Ambiental Simplificada (LAS) ou Declaração de Não Passível', detalhe: 'Solicitação eletrônica com autodeclaração de porte e atendimento a condicionantes.' }
-      ]
-    });
-  } else {
-    documentos.push({
-      categoria: 'Secretaria Municipal de Meio Ambiente (SMMAM)',
-      obrigatorio: false,
-      alerta: 'Baixo Risco Ambiental - Dispensado',
-      itens: [
-        { nome: 'Dispensa Automática de Licença Ambiental', detalhe: 'Atividade dispensada de atos autorizativos ambientais.' }
-      ]
-    });
-  }
-
-  // EIV - Estudo de Impacto de Vizinhança
-  if (sujeitoEiv) {
-    documentos.push({
-      categoria: 'Planejamento Urbano e Zoneamento (IPURB / EIV)',
-      obrigatorio: true,
-      alerta: 'Atividade Sujeita a Análise de Impacto de Vizinhança (Anexo 9.1)',
-      itens: [
-        { 
-          nome: 'EIV/EII (Estudo do Impacto da Vizinhança/Inovação) APROVADO com ART', 
-          detalhe: `Atividades relacionadas no Plano Diretor: ${eivItens.map(e => `${e.cnae} (${e.enquadramento})`).join('; ')}. O estudo deve ser elaborado por Arquiteto ou Engenheiro e aprovado pelo IPURB.` 
-        }
-      ]
-    });
-  }
-
+  const nivel = Math.max(maiorVisa, maiorSmmam);
+  const nivelRiscoGeral = nivel >= 3 ? 'III' : nivel === 2 ? 'II' : 'I';
   return {
-    tipoEstabelecimento: 'ponto_fixo',
-    nivelRiscoGeral,
-    tituloRisco,
-    elegivelUmaHora,
-    descricaoRisco,
-    temRiscoIII_Visa,
-    temRiscoII_Visa,
-    temRiscoIII_Smmam,
-    temRiscoII_Smmam,
-    sujeitoEiv,
-    eivItens,
-    tributario: {
-      valorUrm: VALOR_URM_ATUAL,
-      aliquotaPercentual: percentualUrm,
-        qtdUrm: qtdUrm,
-      valorTflif: valorTflifReais,
-      isMei,
-      setor: setorDominante,
-      cnaeBaseTaxa: cnaeMaiorTaxa.cnae,
-      baseLegal: 'Art. 195 a 197 da LC 183/2013 e LC 123/2006 (MEI)'
-    },
-    orientacoesVisa,
-    orientacoesSmmam,
-    perguntasPendentes,
+    tipoEstabelecimento: 'ponto_fixo', nivelRiscoGeral, tituloRisco: nivelRiscoGeral === 'III' ? 'Alto Risco (Nível III)' : nivelRiscoGeral === 'II' ? 'Médio Risco (Nível II)' : 'Baixo Risco (Nível I)',
+    elegivelUmaHora: nivelRiscoGeral === 'I' && perguntasPendentes.length === 0,
+    descricaoRisco: perguntasPendentes.length ? 'A listagem abaixo considera o maior potencial enquanto existem perguntas sem resposta. Responda-as para reduzir a exigência, quando permitido pela tabela.' : 'Listagem final consolidada conforme o maior risco entre os órgãos licenciadores.',
+    temRiscoIII_Visa: maiorVisa >= 3, temRiscoII_Visa: maiorVisa === 2, temRiscoIII_Smmam: maiorSmmam >= 3, temRiscoII_Smmam: maiorSmmam === 2,
+    sujeitoEiv: eivItens.length > 0, eivItens, perguntasPendentes, orientacoesVisa, orientacoesSmmam,
+    tributario: { valorUrm: VALOR_URM_ATUAL, qtdUrm, aliquotaPercentual: qtdUrm * 100, valorTflif, isMei, setor: cnaeTaxa.setor, cnaeBaseTaxa: cnaeTaxa.cnae, baseLegal: 'Art. 195 a 197 da LC 183/2013; MEI conforme Art. 196' },
     documentos
   };
-}
-
-// Normalizador de perguntas para evitar duplicação entre VISA e SMMAM
-function normalizarPergunta(texto) {
-  if (!texto) return '';
-  const limpo = texto.toLowerCase()
-    .replace(/[^\w\s]/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  // Equivalências comuns de área
-  if (limpo.includes('1000') && (limpo.includes('area') || limpo.includes('artesanal'))) {
-    return 'area_util_1000m2_artesanal';
-  }
-  if (limpo.includes('2500') && limpo.includes('area')) {
-    return 'area_construida_2500m2';
-  }
-  if (limpo.includes('250') && limpo.includes('area')) {
-    return 'area_util_250m2';
-  }
-  if (limpo.includes('500') && (limpo.includes('supermercado') || limpo.includes('shopping'))) {
-    return 'area_util_supermercado_500m2';
-  }
-  if (limpo.includes('produto artesanal') && !limpo.includes('1000')) {
-    return 'produto_artesanal_diferente';
-  }
-
-  return limpo;
 }

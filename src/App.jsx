@@ -28,7 +28,6 @@ export default function App() {
   const [tipoEstabelecimento, setTipoEstabelecimento] = useState('ponto_fixo'); // 'ponto_fixo' ou 'ponto_referencia'
   const [isMei, setIsMei] = useState(false);
   const [respostasPerguntas, setRespostasPerguntas] = useState({});
-  const [checklistMarcados, setChecklistMarcados] = useState({});
   const [copiado, setCopiado] = useState(false);
 
   // Filtragem de CNAEs
@@ -72,13 +71,6 @@ export default function App() {
     }));
   };
 
-  // Toggle do checkbox de documento
-  const toggleDoc = (docNome) => {
-    setChecklistMarcados(prev => ({
-      ...prev,
-      [docNome]: !prev[docNome]
-    }));
-  };
 
   // Cálculo de enquadramento
   const diagnostico = useMemo(() => {
@@ -299,7 +291,6 @@ export default function App() {
                     onClick={() => {
                       setCnaesSelecionados([]);
                       setRespostasPerguntas({});
-                      setChecklistMarcados({});
                     }}
                     className="text-xs text-rose-600 hover:text-rose-700 font-medium"
                   >
@@ -567,10 +558,10 @@ export default function App() {
                     <div>
                       <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                         <CheckCircle2 className="w-5 h-5 text-emerald-700" />
-                        Checklist Oficial de Documentos ({tipoEstabelecimento === 'ponto_fixo' ? 'Ponto Fixo Padrão' : 'Ponto de Referência'})
+                        Listagem Final de Documentos ({tipoEstabelecimento === 'ponto_fixo' ? 'Ponto Fixo' : 'Ponto de Referência'})
                       </h3>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Documentação mapeada dos modelos oficiais da Sala do Empreendedor e legislações pertinentes:
+                        Lista consolidada automaticamente. Os PDFs definem os documentos; as tabelas definem se EIV, PPCI, licenciamento ambiental e sanitário são necessários. Quando há pergunta sem resposta, a lista considera o maior potencial.
                       </p>
                     </div>
                   </div>
@@ -590,30 +581,25 @@ export default function App() {
                         </div>
 
                         <div className="p-3 divide-y divide-slate-100">
-                          {categoria.itens.map((doc, docIdx) => {
-                            const marcado = !!checklistMarcados[doc.nome];
-                            return (
-                              <label
-                                key={docIdx}
-                                className="flex items-start gap-3 py-2.5 px-2 hover:bg-slate-50 rounded cursor-pointer transition select-none"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={marcado}
-                                  onChange={() => toggleDoc(doc.nome)}
-                                  className="mt-0.5 h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 rounded shrink-0"
-                                />
-                                <div className="text-xs">
-                                  <span className={`font-semibold ${marcado ? 'line-through text-slate-400' : 'text-slate-800'}`}>
-                                    {doc.nome}
-                                  </span>
-                                  <p className={`mt-0.5 leading-relaxed ${marcado ? 'text-slate-400' : 'text-slate-500'}`}>
-                                    {doc.detalhe}
-                                  </p>
-                                </div>
-                              </label>
-                            );
-                          })}
+                          {categoria.itens.map((doc, docIdx) => (
+                            <div
+                              key={docIdx}
+                              className="flex items-start gap-3 py-2.5 px-2 rounded transition"
+                            >
+                              <span className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${doc.obrigatorio === false ? 'bg-slate-200 text-slate-500' : 'bg-emerald-100 text-emerald-700'}`}>
+                                {doc.obrigatorio === false ? 'i' : '✓'}
+                              </span>
+                              <div className="text-xs">
+                                <span className={`font-semibold ${doc.obrigatorio === false ? 'text-slate-600' : 'text-slate-800'}`}>
+                                  {doc.nome}{doc.obrigatorio === false ? ' (não solicitado)' : ''}
+                                </span>
+                                <p className="mt-0.5 leading-relaxed text-slate-500">
+                                  {doc.detalhe}
+                                </p>
+                                {doc.fonte && <p className="mt-0.5 text-[10px] text-slate-400">Fonte: {doc.fonte}</p>}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     ))}
