@@ -93,7 +93,7 @@ export default function App() {
     texto += `*Modalidade:* ${tipoEstabelecimento === 'ponto_fixo' ? 'PONTO FIXO (Com estabelecimento físico)' : 'PONTO DE REFERÊNCIA (Apenas endereço fiscal)'}\n`;
     texto += `*Classificação Geral:* ${diagnostico.tituloRisco}\n`;
     texto += `*Elegível a Abertura em 1h:* ${diagnostico.elegivelUmaHora ? 'SIM (Baixo Risco Automático)' : 'NÃO (Requer análise/vistoria prévia)'}\n`;
-    texto += `*Enquadramento Tributário:* TFLIF ${diagnostico.tributario.isMei ? 'ISENTO (MEI)' : `R$ ${diagnostico.tributario.valorTflif.toFixed(2)} (${diagnostico.tributario.aliquotaPercentual}% da URM R$ ${diagnostico.tributario.valorUrm.toFixed(2)})`}\n`;
+    texto += `*Enquadramento Tributário:* TFLIF ${diagnostico.tributario.isMei ? 'ISENTO (MEI)' : `R$ ${diagnostico.tributario.valorTflif.toFixed(2)} (${diagnostico.tributario.qtdUrm || 2} URMs / ${diagnostico.tributario.aliquotaPercentual}% da URM R$ ${diagnostico.tributario.valorUrm.toFixed(2)})`}\n`;
     if (diagnostico.sujeitoEiv) {
       texto += `*Impacto Urbano (EIV):* SIM - Atividade listada no Anexo 9.1 do Plano Diretor\n`;
     }
@@ -274,7 +274,7 @@ export default function App() {
                             {item.cnae}
                           </span>
                           <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                            TFLIF: {item.aliquota_tflif}%
+                            TFLIF: {item.aliquota_tflif >= 10 ? (item.aliquota_tflif/100) : item.aliquota_tflif} URM ({item.aliquota_tflif >= 10 ? item.aliquota_tflif : (item.aliquota_tflif*100)}%)
                           </span>
                         </div>
                         <p className="text-xs text-slate-700 mt-1 font-medium group-hover:text-emerald-900">
@@ -344,7 +344,7 @@ export default function App() {
                               </button>
                             )}
                             <span className="bg-slate-200 text-slate-700 text-[10px] px-1.5 py-0.5 rounded">
-                              TFLIF: {item.aliquota_tflif}%
+                              TFLIF: {item.aliquota_tflif >= 10 ? (item.aliquota_tflif/100) : item.aliquota_tflif} URM ({item.aliquota_tflif >= 10 ? item.aliquota_tflif : (item.aliquota_tflif*100)}%)
                             </span>
                           </div>
                           <p className="text-xs text-slate-700 mt-1 leading-relaxed">
@@ -528,7 +528,7 @@ export default function App() {
                         )}
                       </p>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        Alíquota: {diagnostico.tributario.aliquotaPercentual}% da URM
+                        Alíquota: {diagnostico.tributario.qtdUrm || 2} URM ({diagnostico.tributario.aliquotaPercentual}%)
                       </p>
                     </div>
 

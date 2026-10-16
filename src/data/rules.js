@@ -37,7 +37,11 @@ export function calcularEnquadramento(
 
   // Valor em Reais da TFLIF: (aliquota % * URM)
   // Nota: MEI é isento conforme Art. 196 da LC 183/2013
-  const valorTflifReais = isMei ? 0.0 : ((aliquotaTflif / 100) * VALOR_URM_ATUAL);
+  // A alíquota na tabela municipal expressa o múltiplo de URM (ex: 2 = 200% = 2 URMs; 3 = 300% = 3 URMs)
+  // Art. 197 LC 183/2013: Indústria, Comércio e Serviços = 200% (2 URMs); Construção/Postos = 300% (3 URMs)
+  const qtdUrm = aliquotaTflif >= 10 ? (aliquotaTflif / 100) : aliquotaTflif;
+  const percentualUrm = qtdUrm * 100;
+  const valorTflifReais = isMei ? 0.0 : (qtdUrm * VALOR_URM_ATUAL);
 
   // 2. Análise de EIV (Anexo 9.1 do Plano Diretor)
   const eivItens = cnaesSelecionados
@@ -67,7 +71,8 @@ export function calcularEnquadramento(
       eivItens: [],
       tributario: {
         valorUrm: VALOR_URM_ATUAL,
-        aliquotaPercentual: aliquotaTflif,
+        aliquotaPercentual: percentualUrm,
+        qtdUrm: qtdUrm,
         valorTflif: valorTflifReais,
         isMei,
         setor: setorDominante,
@@ -355,7 +360,8 @@ export function calcularEnquadramento(
     eivItens,
     tributario: {
       valorUrm: VALOR_URM_ATUAL,
-      aliquotaPercentual: aliquotaTflif,
+      aliquotaPercentual: percentualUrm,
+        qtdUrm: qtdUrm,
       valorTflif: valorTflifReais,
       isMei,
       setor: setorDominante,
