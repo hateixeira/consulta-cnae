@@ -1,10 +1,57 @@
 // Motor de Regras de Documentação e Enquadramento - REDESIM Bento Gonçalves
+// Extraído diretamente dos modelos oficiais 'Ponto Fixo Padrão.pdf' e 'Ponto de Referência.pdf'
 
-export function calcularEnquadramento(cnaesSelecionados, respostasPerguntas = {}) {
+export function calcularEnquadramento(cnaesSelecionados, respostasPerguntas = {}, tipoEstabelecimento = 'ponto_fixo') {
   if (!cnaesSelecionados || cnaesSelecionados.length === 0) {
     return null;
   }
 
+  const isPontoReferencia = tipoEstabelecimento === 'ponto_referencia';
+
+  // Se for Ponto de Referência:
+  if (isPontoReferencia) {
+    return {
+      tipoEstabelecimento: 'ponto_referencia',
+      nivelRiscoGeral: 'I',
+      tituloRisco: 'Baixo Risco (Nível I) - Ponto de Referência',
+      elegivelUmaHora: true,
+      descricaoRisco: 'Ponto de referência/endereço fiscal sem atendimento ao público e sem estoque. Dispensado de Habite-se, PPCI, alvará sanitário e licenciamento ambiental no local. Elegível para abertura imediata em até 1 hora na REDESIM.',
+      temRiscoIII_Visa: false,
+      temRiscoII_Visa: false,
+      temRiscoIII_Smmam: false,
+      temRiscoII_Smmam: false,
+      orientacoesVisa: ['Dispensado de controle sanitário in loco por se tratar exclusivamente de ponto de referência/endereço fiscal.'],
+      orientacoesSmmam: ['Dispensado de licenciamento ambiental por não haver atividade poluidora ou instalação física operacional no local.'],
+      perguntasPendentes: [],
+      documentos: [
+        {
+          categoria: 'Documentação Obrigatória - Ponto de Referência (Conforme Modelo Oficial)',
+          obrigatorio: true,
+          alerta: 'Base: Ponto de Referência.pdf - Sala do Empreendedor',
+          itens: [
+            { nome: 'Comprovante de Residência', detalhe: 'Conta de água, luz ou telefone recente em nome do responsável ou proprietário do imóvel.' },
+            { nome: 'Declaração de Ponto de Referência com Firma Reconhecida', detalhe: 'Declaração formal atestando que o local servirá apenas para correspondência e contato, sem atendimento ao público e sem depósito de mercadorias.' },
+            { nome: 'Contrato Social / Requerimento de Empresário / CCMEI', detalhe: 'Ato constitutivo registrado na Junta Comercial (JUCISRS) ou Cartório.' },
+            { nome: 'Cartão do CNPJ', detalhe: 'Comprovante de Inscrição e Situação Cadastral emitido pela Receita Federal.' },
+            { nome: 'Boletim de Informações Econômicas (BIE)', detalhe: 'Preenchido e assinado pelo responsável legal ou contador habilitado.' },
+            { nome: 'Cópia do Documento dos Sócios', detalhe: 'Cópia legível de RG/CPF ou CNH de todos os sócios/administradores.' }
+          ]
+        },
+        {
+          categoria: 'Isenções Aplicáveis ao Ponto de Referência',
+          obrigatorio: false,
+          alerta: 'Desburocratização REDESIM',
+          itens: [
+            { nome: 'Dispensa de Habite-se Comercial e Contrato de Locação Comercial', detalhe: 'Por não haver estabelecimento aberto ao público no imóvel.' },
+            { nome: 'Dispensa de PPCI no Endereço Fiscal', detalhe: 'Conforme diretrizes de endereço de referência do CBMRS.' },
+            { nome: 'Dispensa de Alvará Sanitário e Licença Ambiental no Local', detalhe: 'Atividade operacional exercida externamente ou digitalmente.' }
+          ]
+        }
+      ]
+    };
+  }
+
+  // --- SE FOR PONTO FIXO PADRÃO ---
   let temRiscoIII_Visa = false;
   let temRiscoII_Visa = false;
   let temRiscoIII_Smmam = false;
@@ -22,7 +69,6 @@ export function calcularEnquadramento(cnaesSelecionados, respostasPerguntas = {}
     } else if (vRisco === 'II') {
       temRiscoII_Visa = true;
     } else if (vRisco === 'P') {
-      // Avaliar respostas do usuário se houver perguntas
       const perguntas = item.visa?.perguntas || [];
       perguntas.forEach((p) => {
         const resp = respostasPerguntas[`visa_${p.id}`];
@@ -81,116 +127,125 @@ export function calcularEnquadramento(cnaesSelecionados, respostasPerguntas = {}
   let nivelRiscoGeral = 'I';
   let tituloRisco = 'Baixo Risco (Nível I)';
   let elegivelUmaHora = true;
-  let descricaoRisco = 'Dispensado de atos públicos de liberação prévia (alvarás e licenças prévias). Abertura automatizada no portal da REDESIM em até 1 hora.';
+  let descricaoRisco = 'Ponto Fixo enquadrado em Baixo Risco. Dispensado de vistorias e atos públicos de liberação prévia. Abertura automatizada no portal da REDESIM em até 1 hora.';
 
   if (temRiscoIII_Visa || temRiscoIII_Smmam) {
     nivelRiscoGeral = 'III';
     tituloRisco = 'Alto Risco (Nível III)';
     elegivelUmaHora = false;
-    descricaoRisco = 'Exige vistoria e licenciamento prévio obrigatório pelos órgãos competentes antes do início das atividades.';
+    descricaoRisco = 'Ponto Fixo com atividade de Alto Risco. Exige vistorias, laudos e licenças prévias obrigatórias antes do início das atividades.';
   } else if (temRiscoII_Visa || temRiscoII_Smmam) {
     nivelRiscoGeral = 'II';
     tituloRisco = 'Médio Risco (Nível II)';
     elegivelUmaHora = false;
-    descricaoRisco = 'Permite emissão de alvará provisório ou licenças simplificadas com vistoria a posteriori.';
+    descricaoRisco = 'Ponto Fixo de Médio Risco. Permite emissão de alvará provisório ou licenças simplificadas com vistoria a posteriori.';
   }
 
-  // Lista de Documentos Estruturados
+  // Documentos Oficiais para PONTO FIXO PADRÃO
   const documentos = [
     {
-      categoria: 'Cadastro e Fazenda Municipal (Geral)',
+      categoria: 'Cadastro e Imobiliário (Base: Ponto Fixo Padrão.pdf)',
       obrigatorio: true,
+      alerta: 'Exigência Documental Padrão Municipal',
       itens: [
-        { nome: 'Habite-se do imóvel ou Certidão de Edificação Averbada', detalhe: 'Comprova regularidade da construção onde a empresa será instalada.' },
-        { nome: 'Contrato de Locação ou Matrícula Atualizada do Imóvel', detalhe: 'Se locado, contrato com reconhecimento de firmas; se próprio, certidão de matrícula recente.' },
+        { nome: 'Habite-se da Edificação', detalhe: 'Carta de Habite-se aprovada pelo Município de Bento Gonçalves para o imóvel onde o estabelecimento funcionará.' },
+        { nome: 'Contrato de Locação (se for locado) ou Matrícula Atualizada', detalhe: 'Contrato de locação com firmas reconhecidas ou certidão de matrícula do Registro de Imóveis.' },
         { nome: 'Contrato Social / Requerimento de Empresário / CCMEI', detalhe: 'Ato constitutivo registrado na Junta Comercial (JUCISRS) ou Cartório.' },
-        { nome: 'Cartão do CNPJ', detalhe: 'Comprovante de Inscrição e de Situação Cadastral emitido pela Receita Federal.' },
-        { nome: 'Documento de Identificação dos Sócios e Administradores', detalhe: 'Cópia de RG/CPF ou CNH válida.' },
-        { nome: 'Boletim de Informações Econômicas (BIE)', detalhe: 'Preenchido e assinado pelo responsável legal ou contador credenciado.' }
+        { nome: 'Cartão do CNPJ', detalhe: 'Comprovante de Inscrição e Situação Cadastral atualizado emitido pela Receita Federal.' },
+        { nome: 'Boletim de Informações Econômicas (BIE)', detalhe: 'Preenchido e assinado pelo responsável legal ou contador responsável.' },
+        { nome: 'Cópia do Documento dos Sócios', detalhe: 'Cópia de RG/CPF ou CNH de todos os sócios e administradores.' }
       ]
     },
     {
       categoria: 'Prevenção Contra Incêndio (CBMRS / Bombeiros)',
       obrigatorio: true,
+      alerta: 'Segurança contra Incêndio Obrigatória',
       itens: [
         { 
           nome: 'Plano de Prevenção e Combate Contra Incêndio (PPCI) ou Certificado de Conformidade (CLCB)', 
-          detalhe: nivelRiscoGeral === 'I' 
-            ? 'Para atividades de baixo risco/baixo potencial sem circulação de público, pode ser emitido Certificado de Licenciamento do Corpo de Bombeiros simplificado.' 
-            : 'Protocolo de aprovação ou alvará do Corpo de Bombeiros Militar do RS.'
+          detalhe: 'Alvará do Corpo de Bombeiros Militar do RS (APPCI) ou Certificado de Licenciamento (CLCB) vigente para o local.' 
         }
       ]
     }
   ];
 
-  // Adicionar Documentos da Vigilância Sanitária
+  // Adicionar Licença Sanitária (conforme modelo Ponto Fixo Padrão)
   if (temRiscoIII_Visa) {
     documentos.push({
       categoria: 'Vigilância Sanitária Municipal (VISA)',
       obrigatorio: true,
-      alerta: 'Alto Risco Sanitário - Licenciamento Prévio Obrigatório',
+      alerta: 'Licença Sanitária Obrigatória (Alto Risco)',
       itens: [
-        { nome: 'Alvará de Autorização Sanitária (AAS)', detalhe: 'Vistoria sanitária prévia antes de iniciar o atendimento.' },
-        { nome: 'Anotação de Responsabilidade Técnica (ART/CRT)', detalhe: 'Registro do Responsável Técnico perante o Conselho de Classe (CRF, CRM, CRBio, CRQ, etc.).' },
-        { nome: 'Manual de Boas Práticas e Procedimentos Operacionais Padronizados (POP)', detalhe: 'Documentação técnica de controle higiênico-sanitário.' },
-        { nome: 'Plano de Gerenciamento de Resíduos de Serviços de Saúde (PGRSS)', detalhe: 'Exigido se houver geração de resíduos infectantes ou biológicos.' }
+        { nome: 'Alvará de Autorização Sanitária (AAS)', detalhe: 'Licença Sanitária expedida pela VISA após vistoria prévia.' },
+        { nome: 'Anotação de Responsabilidade Técnica (ART/CRT)', detalhe: 'Registro do Responsável Técnico perante o Conselho de Classe profissional.' },
+        { nome: 'Manual de Boas Práticas e Procedimentos Operacionais Padronizados (POP)', detalhe: 'Manuais técnicos de controle higiênico-sanitário.' }
       ]
     });
   } else if (temRiscoII_Visa) {
     documentos.push({
       categoria: 'Vigilância Sanitária Municipal (VISA)',
       obrigatorio: false,
-      alerta: 'Médio Risco Sanitário - Alvará Provisório / Fiscalização Posterior',
+      alerta: 'Médio Risco Sanitário - Alvará Provisório',
       itens: [
-        { nome: 'Declaração de Cumprimento das Exigências Sanitárias', detalhe: 'Termo de responsabilidade assinado informando cumprimento das normas de saúde.' },
-        { nome: 'Comprovante de Higienização de Reservatórios de Água e Controle de Pragas', detalhe: 'Laudo de limpeza de caixa d\'água e desinsetização atualizados.' }
+        { nome: 'Declaração Eletrônica de Cumprimento das Exigências Sanitárias', detalhe: 'Termo de ciência e responsabilidade emitido na viabilidade da REDESIM.' }
       ]
     });
   } else {
     documentos.push({
       categoria: 'Vigilância Sanitária Municipal (VISA)',
       obrigatorio: false,
-      alerta: 'Dispensado de Licenciamento Sanitário Prévio (Lei da Liberdade Econômica)',
+      alerta: 'Baixo Risco Sanitário - Dispensado',
       itens: [
-        { nome: 'Declaração Eletrônica de Baixo Risco Sanitário', detalhe: 'Gerada automaticamente na viabilidade da REDESIM.' }
+        { nome: 'Dispensa Automática de Licença Sanitária', detalhe: 'Atividade sem risco sanitário ou de baixo risco dispensada pela Lei da Liberdade Econômica.' }
       ]
     });
   }
 
-  // Adicionar Documentos de Meio Ambiente (SMMAM)
+  // Adicionar Licença Ambiental (conforme modelo Ponto Fixo Padrão)
   if (temRiscoIII_Smmam) {
     documentos.push({
       categoria: 'Secretaria Municipal de Meio Ambiente (SMMAM / FEPAM)',
       obrigatorio: true,
-      alerta: 'Alto Risco Ambiental - Licença Ambiental Obrigatória (Resolução CONSEMA 372/2018)',
+      alerta: 'Licenciamento Ambiental (Licença de Operação - LO)',
       itens: [
-        { nome: 'Requerimento de Licenciamento Ambiental Municipal ou FEPAM', detalhe: 'Protocolado no Portal do Cidadão de Bento Gonçalves ou FEPAM (se competência estadual).' },
-        { nome: 'Certidão de Zoneamento e Uso do Solo para fins Ambientais', detalhe: 'Expedida pelo Instituto de Pesquisa e Planejamento Urbano (IPURB).' },
-        { nome: 'Estudo / Plano de Controle Ambiental (PCA) com ART', detalhe: 'Elaborado por engenheiro ambiental/químico habilitado.' },
-        { nome: 'Outorga ou Dispensa de Outorga de Uso da Água (DRH/SEMA)', detalhe: 'Se utilizar poço artesiano ou captação superficial.' }
+        { nome: 'Licença de Operação (LO) ou Licença Prévia/Instalação (LP/LI)', detalhe: 'Licenciamento Ambiental protocolado no Portal do Cidadão de Bento Gonçalves ou FEPAM conforme CONSEMA 372/2018.' },
+        { nome: 'Plano de Controle Ambiental (PCA) com ART do Responsável Técnico', detalhe: 'Elaborado por engenheiro devidamente habilitado.' }
       ]
     });
   } else if (temRiscoII_Smmam) {
     documentos.push({
       categoria: 'Secretaria Municipal de Meio Ambiente (SMMAM)',
       obrigatorio: false,
-      alerta: 'Médio Risco Ambiental - Licenciamento Simplificado ou Declaração',
+      alerta: 'Médio Risco Ambiental - Licença Simplificada',
       itens: [
-        { nome: 'Certidão de Não Passível de Licenciamento ou Licença Ambiental Simplificada (LAS)', detalhe: 'Solicitação digital via protocolo do município com declaração de porte e atividade.' }
+        { nome: 'Licença Ambiental Simplificada (LAS) ou Certidão de Não Passível', detalhe: 'Protocolada eletronicamente perante a SMMAM Bento Gonçalves.' }
       ]
     });
   } else {
     documentos.push({
       categoria: 'Secretaria Municipal de Meio Ambiente (SMMAM)',
       obrigatorio: false,
-      alerta: 'Dispensado de Licenciamento Ambiental Municipal',
+      alerta: 'Baixo Risco Ambiental - Dispensado',
       itens: [
-        { nome: 'Dispensa Automática de Licença Ambiental', detalhe: 'Atividade sem impacto ambiental significativo cadastrada no sistema REDESIM.' }
+        { nome: 'Dispensa Automática de Licenciamento Ambiental', detalhe: 'Atividade dispensada conforme resolução CONSEMA e normas municipais.' }
+      ]
+    });
+  }
+
+  // EIV - Estudo de Impacto de Vizinhança (constante no Ponto Fixo Padrão.pdf)
+  if (temRiscoIII_Smmam || temRiscoIII_Visa) {
+    documentos.push({
+      categoria: 'Planejamento Urbano / Zoneamento (IPURB)',
+      obrigatorio: true,
+      alerta: 'Base: Lei Complementar 200/2018 e Lei Municipal 6.300/2017',
+      itens: [
+        { nome: 'EIV (Estudo do Impacto da Vizinhança) APROVADO com ART', detalhe: 'Exigido para atividades de porte ou impacto no tráfego/vizinhança conforme zoneamento municipal.' }
       ]
     });
   }
 
   return {
+    tipoEstabelecimento: 'ponto_fixo',
     nivelRiscoGeral,
     tituloRisco,
     elegivelUmaHora,

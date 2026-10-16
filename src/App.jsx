@@ -15,12 +15,15 @@ import {
   ChevronRight, 
   Info, 
   MapPin, 
-  Phone 
+  Phone,
+  Store,
+  Compass
 } from 'lucide-react';
 
 export default function App() {
   const [busca, setBusca] = useState('');
   const [cnaesSelecionados, setCnaesSelecionados] = useState([]);
+  const [tipoEstabelecimento, setTipoEstabelecimento] = useState('ponto_fixo'); // 'ponto_fixo' ou 'ponto_referencia'
   const [respostasPerguntas, setRespostasPerguntas] = useState({});
   const [checklistMarcados, setChecklistMarcados] = useState({});
   const [copiado, setCopiado] = useState(false);
@@ -76,14 +79,15 @@ export default function App() {
 
   // Cálculo de enquadramento
   const diagnostico = useMemo(() => {
-    return calcularEnquadramento(cnaesSelecionados, respostasPerguntas);
-  }, [cnaesSelecionados, respostasPerguntas]);
+    return calcularEnquadramento(cnaesSelecionados, respostasPerguntas, tipoEstabelecimento);
+  }, [cnaesSelecionados, respostasPerguntas, tipoEstabelecimento]);
 
   // Copiar relatório
   const copiarRelatorio = () => {
     if (!diagnostico) return;
 
     let texto = `*CONSULTA DE DOCUMENTAÇÃO E ENQUADRAMENTO - REDESIM BENTO GONÇALVES*\n\n`;
+    texto += `*Modalidade:* ${tipoEstabelecimento === 'ponto_fixo' ? 'PONTO FIXO (Com estabelecimento físico)' : 'PONTO DE REFERÊNCIA (Apenas endereço fiscal)'}\n`;
     texto += `*Classificação Geral:* ${diagnostico.tituloRisco}\n`;
     texto += `*Elegível a Abertura em 1h:* ${diagnostico.elegivelUmaHora ? 'SIM (Baixo Risco Automático)' : 'NÃO (Requer análise/vistoria prévia)'}\n\n`;
     
@@ -92,7 +96,7 @@ export default function App() {
       texto += `- ${idx === 0 ? '[PRINCIPAL] ' : ''}${c.cnae} - ${c.descricao}\n`;
     });
 
-    texto += `\n*DOCUMENTAÇÃO EXIGIDA:*\n`;
+    texto += `\n*DOCUMENTAÇÃO EXIGIDA (OFICIAL):*\n`;
     diagnostico.documentos.forEach((cat) => {
       texto += `\n📂 ${cat.categoria.toUpperCase()}${cat.alerta ? ` (${cat.alerta})` : ''}\n`;
       cat.itens.forEach((it) => {
@@ -127,7 +131,7 @@ export default function App() {
                 Consulta de Documentação por CNAE Fiscal
               </h1>
               <p className="text-emerald-100 text-sm mt-0.5">
-                Enquadramento automatizado de risco, exigências da Vigilância Sanitária (VISA), Meio Ambiente (SMMAM) e Fazenda Municipal.
+                Enquadramento automatizado por modalidade (Ponto Fixo vs Ponto de Referência) conforme legislação municipal e REDESIM.
               </p>
             </div>
 
@@ -147,10 +151,59 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* Coluna Esquerda: Busca e Seleção de CNAEs */}
+          {/* Coluna Esquerda: Configurações, Busca e Seleção de CNAEs */}
           <div className="lg:col-span-5 space-y-6 print:hidden">
             
-            {/* Card de Busca */}
+            {/* Questionamento: Ponto Fixo ou Ponto de Referência */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+              <label className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-2">
+                <Store className="w-4 h-4 text-emerald-700" />
+                Tipo de Estabelecimento no Município
+              </label>
+              <p className="text-xs text-slate-500 mb-3">
+                A modalidade do endereço altera substancialmente a documentação exigida:
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTipoEstabelecimento('ponto_fixo')}
+                  className={`p-3.5 rounded-lg border text-left transition flex flex-col justify-between ${
+                    tipoEstabelecimento === 'ponto_fixo'
+                      ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-500/20'
+                      : 'border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Store className={`w-4 h-4 ${tipoEstabelecimento === 'ponto_fixo' ? 'text-emerald-700' : 'text-slate-400'}`} />
+                    <span className="font-bold text-xs text-slate-900">Ponto Fixo</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                    Com atendimento ao público, funcionários ou estoque no local. Exige <strong>Habite-se</strong> e <strong>PPCI</strong>.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTipoEstabelecimento('ponto_referencia')}
+                  className={`p-3.5 rounded-lg border text-left transition flex flex-col justify-between ${
+                    tipoEstabelecimento === 'ponto_referencia'
+                      ? 'border-emerald-600 bg-emerald-50/70 ring-2 ring-emerald-500/20'
+                      : 'border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Compass className={`w-4 h-4 ${tipoEstabelecimento === 'ponto_referencia' ? 'text-emerald-700' : 'text-slate-400'}`} />
+                    <span className="font-bold text-xs text-slate-900">Ponto de Referência</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                    Apenas endereço fiscal / correspondência, sem atendimento presencial. <strong>Dispensado de Habite-se</strong>.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* Card de Busca de CNAEs */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
               <h2 className="text-lg font-semibold text-slate-900 mb-2 flex items-center gap-2">
                 <Search className="w-5 h-5 text-emerald-700" />
@@ -300,15 +353,15 @@ export default function App() {
               )}
             </div>
 
-            {/* Perguntas de Condicionamento (se houver) */}
-            {diagnostico?.perguntasPendentes && diagnostico.perguntasPendentes.length > 0 && (
+            {/* Perguntas de Condicionamento (se houver e for Ponto Fixo) */}
+            {tipoEstabelecimento === 'ponto_fixo' && diagnostico?.perguntasPendentes && diagnostico.perguntasPendentes.length > 0 && (
               <div className="bg-amber-50 border border-amber-300 rounded-xl p-5 shadow-sm">
                 <div className="flex items-center gap-2 mb-2 text-amber-900 font-semibold text-sm">
                   <AlertTriangle className="w-4 h-4 text-amber-600" />
                   Perguntas de Condicionamento ({diagnostico.perguntasPendentes.length})
                 </div>
                 <p className="text-xs text-amber-800 mb-4">
-                  Algumas atividades possuem risco dependente da forma de operação. Responda abaixo para refinar os documentos exigidos:
+                  Algumas atividades possuem risco dependente da forma de operação no ponto fixo:
                 </p>
 
                 <div className="space-y-4">
@@ -372,16 +425,22 @@ export default function App() {
                 }`}>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase ${
-                        diagnostico.nivelRiscoGeral === 'I'
-                          ? 'bg-emerald-200 text-emerald-900'
-                          : diagnostico.nivelRiscoGeral === 'II'
-                          ? 'bg-amber-200 text-amber-900'
-                          : 'bg-rose-200 text-rose-900'
-                      }`}>
-                        {diagnostico.nivelRiscoGeral === 'I' ? <ShieldCheck className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-                        {diagnostico.tituloRisco}
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase ${
+                          diagnostico.nivelRiscoGeral === 'I'
+                            ? 'bg-emerald-200 text-emerald-900'
+                            : diagnostico.nivelRiscoGeral === 'II'
+                            ? 'bg-amber-200 text-amber-900'
+                            : 'bg-rose-200 text-rose-900'
+                        }`}>
+                          {diagnostico.nivelRiscoGeral === 'I' ? <ShieldCheck className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                          {diagnostico.tituloRisco}
+                        </span>
+                        <span className="bg-slate-200 text-slate-800 text-xs font-bold px-2.5 py-1 rounded-full uppercase">
+                          {tipoEstabelecimento === 'ponto_fixo' ? 'Ponto Fixo' : 'Ponto de Referência'}
+                        </span>
+                      </div>
+
                       <h2 className="text-xl font-bold text-slate-900 mt-2">
                         {diagnostico.elegivelUmaHora ? 'Abertura Rápida em até 1 Hora' : 'Abertura com Licenciamento Prévio'}
                       </h2>
@@ -408,29 +467,35 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Detalhes de Vigilância e Meio Ambiente */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-200/80 text-xs">
-                    <div className="bg-white/80 p-3 rounded-lg border border-slate-200">
-                      <span className="font-semibold text-slate-700">Vigilância Sanitária (VISA):</span>
-                      <p className="text-slate-600 mt-0.5">
-                        {diagnostico.temRiscoIII_Visa 
-                          ? 'Alto Risco - Exige Alvará Sanitário Prévio' 
-                          : diagnostico.temRiscoII_Visa
-                          ? 'Médio Risco - Alvará Provisório'
-                          : 'Baixo Risco / Dispensado de Licença Prévia'}
-                      </p>
+                  {/* Detalhes de Vigilância e Meio Ambiente (somente se for Ponto Fixo) */}
+                  {tipoEstabelecimento === 'ponto_fixo' ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-200/80 text-xs">
+                      <div className="bg-white/80 p-3 rounded-lg border border-slate-200">
+                        <span className="font-semibold text-slate-700">Vigilância Sanitária (VISA):</span>
+                        <p className="text-slate-600 mt-0.5">
+                          {diagnostico.temRiscoIII_Visa 
+                            ? 'Alto Risco - Exige Alvará Sanitário Prévio' 
+                            : diagnostico.temRiscoII_Visa
+                            ? 'Médio Risco - Alvará Provisório'
+                            : 'Baixo Risco / Dispensado de Licença Prévia'}
+                        </p>
+                      </div>
+                      <div className="bg-white/80 p-3 rounded-lg border border-slate-200">
+                        <span className="font-semibold text-slate-700">Meio Ambiente (SMMAM):</span>
+                        <p className="text-slate-600 mt-0.5">
+                          {diagnostico.temRiscoIII_Smmam 
+                            ? 'Alto Risco - Exige Licença Ambiental (CONSEMA 372/2018)' 
+                            : diagnostico.temRiscoII_Smmam
+                            ? 'Médio Risco - Licenciamento Simplificado'
+                            : 'Baixo Risco / Dispensado de Licença Ambiental'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="bg-white/80 p-3 rounded-lg border border-slate-200">
-                      <span className="font-semibold text-slate-700">Meio Ambiente (SMMAM):</span>
-                      <p className="text-slate-600 mt-0.5">
-                        {diagnostico.temRiscoIII_Smmam 
-                          ? 'Alto Risco - Exige Licença Ambiental (CONSEMA 372/2018)' 
-                          : diagnostico.temRiscoII_Smmam
-                          ? 'Médio Risco - Licenciamento Simplificado'
-                          : 'Baixo Risco / Dispensado de Licença Ambiental'}
-                      </p>
+                  ) : (
+                    <div className="mt-4 pt-4 border-t border-slate-200/80 text-xs bg-white/80 p-3 rounded-lg border border-slate-200 text-slate-700">
+                      <strong>Regra de Ponto de Referência:</strong> Conforme modelo oficial municipal, não há fiscalização sanitária ou ambiental no imóvel por se tratar de atividade sem estabelecimento físico aberto ao público.
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Checklist de Documentação Exigida */}
@@ -439,10 +504,10 @@ export default function App() {
                     <div>
                       <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                         <CheckCircle2 className="w-5 h-5 text-emerald-700" />
-                        Checklist de Documentação Necessária
+                        Checklist Oficial de Documentos ({tipoEstabelecimento === 'ponto_fixo' ? 'Ponto Fixo Padrão' : 'Ponto de Referência'})
                       </h3>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Documentos exigidos para instrução do processo em Bento Gonçalves:
+                        Documentos obrigatórios extraídos diretamente das respostas padrão de viabilidade da Prefeitura:
                       </p>
                     </div>
                   </div>
@@ -493,7 +558,7 @@ export default function App() {
                 </div>
 
                 {/* Orientações Oficiais da Legislação */}
-                {(diagnostico.orientacoesVisa.length > 0 || diagnostico.orientacoesSmmam.length > 0) && (
+                {tipoEstabelecimento === 'ponto_fixo' && (diagnostico.orientacoesVisa.length > 0 || diagnostico.orientacoesSmmam.length > 0) && (
                   <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                     <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                       <Info className="w-4 h-4 text-emerald-700" />
