@@ -37,8 +37,10 @@ export default function App() {
     const cleanTermo = termo.replace(/\D/g, '');
 
     return cnaesData.filter((item) => {
-      const matchCodigo = cleanTermo.length > 0 && item.clean_code.includes(cleanTermo);
-      const matchDesc = item.descricao.toLowerCase().includes(termo);
+      const codigo = String(item.clean_code ?? '');
+      const descricao = String(item.descricao ?? '');
+      const matchCodigo = cleanTermo.length > 0 && codigo.includes(cleanTermo);
+      const matchDesc = descricao.toLowerCase().includes(termo);
       return matchCodigo || matchDesc;
     }).slice(0, 15);
   }, [busca]);
