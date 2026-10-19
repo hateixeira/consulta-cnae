@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { jsPDF } from 'jspdf';
 import cnaesData from './data/cnaes.json';
 import { calcularEnquadramento, VALOR_URM_ATUAL } from './data/rules.js';
+import AmbientalSimulator from './components/AmbientalSimulator.jsx';
 import { 
   Search, 
   Building2, 
@@ -99,6 +100,7 @@ export default function App() {
     adicionarTexto(`Classificação geral: ${diagnostico.tituloRisco}`, 10, true);
     adicionarTexto(`Abertura em até 1 hora: ${diagnostico.elegivelUmaHora ? 'Sim' : 'Não — requer análise/vistoria ou há pendência'}`);
     adicionarTexto(`TFLIF: ${diagnostico.tributario.isMei ? 'Isento (MEI)' : `R$ ${diagnostico.tributario.valorTflif.toFixed(2)} — ${diagnostico.tributario.qtdUrm} URMs`}`);
+    adicionarTexto(`Taxa sanitária: ${(diagnostico.temRiscoII_Visa || diagnostico.temRiscoIII_Visa) ? `1 URM — R$ ${diagnostico.tributario.valorUrm.toFixed(2)}` : 'Não indicada pela classificação da tabela VISA'}`);
     adicionarTexto(`URM: R$ ${diagnostico.tributario.valorUrm.toFixed(2)} | EIV/EII: ${diagnostico.sujeitoEiv ? 'Sujeito à análise conforme Anexo 9.1' : 'Sem enquadramento específico na tabela consultada'}`);
     y += 3;
     adicionarTexto('ATIVIDADES SELECIONADAS', 11, true);
@@ -562,7 +564,7 @@ export default function App() {
                   </div>
 
                   {/* Card Tributário - TFLIF e URM */}
-                  <div className="mt-4 pt-4 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div className="mt-4 pt-4 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 text-xs">
                     <div className="bg-white/90 p-3 rounded-lg border border-slate-200">
                       <span className="font-semibold text-slate-700 flex items-center gap-1">
                         <Coins className="w-3.5 h-3.5 text-amber-600" />
@@ -606,8 +608,24 @@ export default function App() {
                         Conforme LC 200/2018
                       </p>
                     </div>
+
+                    <div className="bg-white/90 p-3 rounded-lg border border-slate-200">
+                      <span className="font-semibold text-slate-700">Taxa sanitária:</span>
+                      <p className="text-base font-bold text-slate-900 mt-1">
+                        {(diagnostico.temRiscoII_Visa || diagnostico.temRiscoIII_Visa) ? `R$ ${diagnostico.tributario.valorUrm.toFixed(2)}` : 'Não indicada'}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Base municipal: 1 URM quando houver necessidade sanitária
+                      </p>
+                    </div>
                   </div>
                 </div>
+
+                <AmbientalSimulator
+                  ativo={tipoEstabelecimento === 'ponto_fixo' && (diagnostico.temRiscoII_Smmam || diagnostico.temRiscoIII_Smmam)}
+                  cnaesSelecionados={cnaesSelecionados}
+                  urm={diagnostico.tributario.valorUrm}
+                />
 
                 {/* Checklist de Documentação Exigida */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
