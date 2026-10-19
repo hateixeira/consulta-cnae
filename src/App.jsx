@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { jsPDF } from 'jspdf';
 import cnaesData from './data/cnaes.json';
+import cnaeAmbientalData from './data/cnaeAmbiental.json';
 import { calcularEnquadramento, VALOR_URM_ATUAL } from './data/rules.js';
 import AmbientalSimulator from './components/AmbientalSimulator.jsx';
 import { 
@@ -139,6 +140,9 @@ export default function App() {
   const diagnostico = useMemo(() => {
     return calcularEnquadramento(cnaesSelecionados, respostasPerguntas, tipoEstabelecimento, isMei);
   }, [cnaesSelecionados, respostasPerguntas, tipoEstabelecimento, isMei]);
+
+  const correlacoesAmbientais = useMemo(() => cnaesSelecionados.flatMap((cnae) => cnaeAmbientalData.filter((item) => item.cnae === cnae.clean_code)), [cnaesSelecionados]);
+  const necessitaAmbientalOficial = correlacoesAmbientais.some((item) => ['M', 'M1', 'M2', 'IBAMA'].includes(item.meioAmbiente));
 
   // Copiar relatório
   const copiarRelatorio = () => {
@@ -622,8 +626,9 @@ export default function App() {
                 </div>
 
                 <AmbientalSimulator
-                  ativo={tipoEstabelecimento === 'ponto_fixo' && (diagnostico.temRiscoII_Smmam || diagnostico.temRiscoIII_Smmam)}
+                  ativo={tipoEstabelecimento === 'ponto_fixo' && necessitaAmbientalOficial}
                   cnaesSelecionados={cnaesSelecionados}
+                  correlacoes={correlacoesAmbientais}
                   urm={diagnostico.tributario.valorUrm}
                 />
 

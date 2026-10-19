@@ -1,6 +1,7 @@
 // Motor de consolidação da REDESIM — Bento Gonçalves/RS
 // Regra central: os PDFs definem documentos; as tabelas definem a necessidade e o nível das licenças.
 import { obterDocsPorAtividade } from './atividadesDocs.js';
+import cnaeAmbientalData from './cnaeAmbiental.json';
 
 export const VALOR_URM_ATUAL = 187.03;
 
@@ -39,6 +40,9 @@ export function calcularEnquadramento(cnaesSelecionados, respostasPerguntas = {}
   if (!cnaesSelecionados?.length) return null;
   const pontoReferencia = tipoEstabelecimento === 'ponto_referencia';
   const cleanCodes = cnaesSelecionados.map((c) => c.clean_code);
+  const ambientalOficial = cnaesSelecionados.flatMap((cnae) => cnaeAmbientalData.filter((item) => item.cnae === cnae.clean_code));
+  const classesAmbientais = ambientalOficial.map((item) => item.meioAmbiente).filter(Boolean);
+  const nivelOficial = classesAmbientais.length ? Math.max(...classesAmbientais.map((classe) => classe === 'M1' ? 2 : ['M', 'M2', 'IBAMA'].includes(classe) ? 3 : 0)) : null;
 
   // TFLIF: a coluna da planilha usa múltiplos de URM (2 = 200% = 2 URMs).
   const cnaeTaxa = cnaesSelecionados.reduce((maior, c) => (Number(c.aliquota_tflif ?? 2) > Number(maior.aliquota_tflif ?? 2) ? c : maior), cnaesSelecionados[0]);
@@ -81,7 +85,9 @@ export function calcularEnquadramento(cnaesSelecionados, respostasPerguntas = {}
   });
 
   const maiorVisa = Math.max(0, ...visaResultados.map((p) => p.risco));
-  const maiorSmmam = Math.max(0, ...smmamResultados.map((p) => p.risco));
+  const maiorSmmamTabela = Math.max(0, ...smmamResultados.map((p) => p.risco));
+  // A planilha FINAL_atualiza... passa a ser a fonte principal quando houver registro oficial para o CNAE.
+  const maiorSmmam = nivelOficial === null ? maiorSmmamTabela : nivelOficial;
   const perguntasPendentes = [...perguntas.values()];
   const eivItens = cnaesSelecionados.filter((c) => c.eiv?.sujeito).map((c) => ({ cnae: c.cnae, descricao: c.descricao, enquadramento: c.eiv.enquadramento_legal, grauRisco: c.eiv.grau_risco }));
 
@@ -113,6 +119,7 @@ export function calcularEnquadramento(cnaesSelecionados, respostasPerguntas = {}
     elegivelUmaHora: nivelRiscoGeral === 'I' && perguntasPendentes.length === 0,
     descricaoRisco: perguntasPendentes.length ? 'A listagem abaixo considera o maior potencial enquanto existem perguntas sem resposta. Responda-as para reduzir a exigência, quando permitido pela tabela.' : 'Listagem final consolidada conforme o maior risco entre os órgãos licenciadores.',
     temRiscoIII_Visa: maiorVisa >= 3, temRiscoII_Visa: maiorVisa === 2, temRiscoIII_Smmam: maiorSmmam >= 3, temRiscoII_Smmam: maiorSmmam === 2,
+    ambientalOficial, nivelAmbientalOficial: nivelOficial,
     sujeitoEiv: eivItens.length > 0, eivItens, perguntasPendentes, orientacoesVisa, orientacoesSmmam,
     tributario: { valorUrm: VALOR_URM_ATUAL, qtdUrm, aliquotaPercentual: qtdUrm * 100, valorTflif, isMei, setor: cnaeTaxa.setor, cnaeBaseTaxa: cnaeTaxa.cnae, baseLegal: 'Art. 195 a 197 da LC 183/2013; MEI conforme Art. 196' },
     documentos

@@ -107,3 +107,21 @@ Antes de cobrança ou emissão oficial, a Prefeitura deve confirmar:
 - hipótese de não incidência;
 - regra de PRONAF;
 - base municipal da taxa sanitária de 1 URM.
+
+---
+
+## 22. Correlação Oficial CNAE–CODRAN/CODRAM (Planilha Atualizada)
+
+A partir da planilha oficial `FINAL_atualiza__o_TABELA_CNAES_BG.xlsx` (aba `CnaeXRisco`), a vinculação de atividades ambientais deixou de ser uma aproximação textual e passou a ser uma **correlação direta por código CNAE**.
+
+### Dados integrados:
+1. **Base Oficial:** 1.697 registros na aba `CnaeXRisco`.
+2. **Coluna MEIO AMBIENTE:**
+   - `M`: Licenciamento obrigatório no Município de Bento Gonçalves.
+   - `M1`: Atividade pode necessitar de licenciamento, dependendo da área/porte do empreendimento.
+   - `M2`: Licenciamento de competência estadual (FEPAM).
+   - `IBAMA`: Competência federal.
+   - `*`: Atividade NÃO passível de licenciamento ambiental.
+3. **Coluna CODRAN (CODRAM):** 655 registros vinculados diretamente a um ou mais códigos normativos da CONSEMA 556.
+4. **Múltiplos Códigos:** Tratamento automatizado de separadores (`;`, `,`, `/`) e condições complementares da norma.
+5. **Simulador de Taxas:** Apresenta unicamente os CODRAMs oficialmente vinculados ao(s) CNAE(s) selecionado(s), permitindo ao requerente informar a métrica declarada (área útil, cabeças, etc.) para cálculo exato de Porte, URM e Reais.
