@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { jsPDF } from 'jspdf';
 import cnaesData from './data/cnaes.json';
 import { calcularEnquadramento, VALOR_URM_ATUAL } from './data/rules.js';
 import { 
@@ -19,7 +20,8 @@ import {
   Store,
   Compass,
   Coins,
-  Scale
+  Scale,
+  Download
 } from 'lucide-react';
 
 export default function App() {
@@ -29,6 +31,7 @@ export default function App() {
   const [isMei, setIsMei] = useState(false);
   const [respostasPerguntas, setRespostasPerguntas] = useState({});
   const [copiado, setCopiado] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
 
   // Filtragem de CNAEs
   const cnaesFiltrados = useMemo(() => {
@@ -73,6 +76,62 @@ export default function App() {
     }));
   };
 
+
+  const gerarRelatorioPdf = () => {
+    if (!diagnostico) return;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const margem = 16;
+    const largura = 178;
+    let y = 18;
+    const adicionarTexto = (texto, tamanho = 9, negrito = false, espacamento = 4.5) => {
+      doc.setFont('helvetica', negrito ? 'bold' : 'normal');
+      doc.setFontSize(tamanho);
+      const blocos = doc.splitTextToSize(String(texto), largura);
+      if (y + blocos.length * espacamento > 278) { doc.addPage(); y = 18; }
+      doc.text(blocos, margem, y);
+      y += blocos.length * espacamento;
+    };
+    adicionarTexto('RELATÓRIO DE CONSULTA — REDESIM BENTO GONÇALVES', 14, true, 6);
+    adicionarTexto('Ferramenta Betha em desenvolvimento — resultado sujeito a conferência oficial.', 9, true);
+    adicionarTexto('Desenvolvido por Humberto Teixeira — matrícula 12900 — Secretaria de Meio Ambiente do Município de Bento Gonçalves.');
+    adicionarTexto(`Emissão: ${new Date().toLocaleString('pt-BR')}`, 8);
+    adicionarTexto(`Modalidade: ${tipoEstabelecimento === 'ponto_fixo' ? 'Ponto Fixo' : 'Ponto de Referência'}`);
+    adicionarTexto(`Classificação geral: ${diagnostico.tituloRisco}`, 10, true);
+    adicionarTexto(`Abertura em até 1 hora: ${diagnostico.elegivelUmaHora ? 'Sim' : 'Não — requer análise/vistoria ou há pendência'}`);
+    adicionarTexto(`TFLIF: ${diagnostico.tributario.isMei ? 'Isento (MEI)' : `R$ ${diagnostico.tributario.valorTflif.toFixed(2)} — ${diagnostico.tributario.qtdUrm} URMs`}`);
+    adicionarTexto(`URM: R$ ${diagnostico.tributario.valorUrm.toFixed(2)} | EIV/EII: ${diagnostico.sujeitoEiv ? 'Sujeito à análise conforme Anexo 9.1' : 'Sem enquadramento específico na tabela consultada'}`);
+    y += 3;
+    adicionarTexto('ATIVIDADES SELECIONADAS', 11, true);
+    cnaesSelecionados.forEach((c, index) => adicionarTexto(`${index === 0 ? '[PRINCIPAL] ' : ''}${c.cnae} — ${c.descricao}`));
+    if (diagnostico.perguntasPendentes.length) {
+      y += 2;
+      adicionarTexto('PERGUNTAS PENDENTES — LISTAGEM CALCULADA PELO MAIOR POTENCIAL', 11, true);
+      diagnostico.perguntasPendentes.forEach(p => adicionarTexto(`• ${p.pergunta}`));
+    }
+    y += 2;
+    adicionarTexto('LISTAGEM FINAL DE DOCUMENTOS', 11, true);
+    diagnostico.documentos.forEach(cat => {
+      adicionarTexto(`${cat.categoria}${cat.alerta ? ` — ${cat.alerta}` : ''}`, 10, true);
+      cat.itens.forEach(item => adicionarTexto(`• ${item.nome}${item.obrigatorio === false ? ' (não solicitado)' : ''}: ${item.detalhe}`));
+    });
+    y += 2;
+    adicionarTexto('AVISO: Esta é uma ferramenta Betha em desenvolvimento e pode conter falhas. O resultado é orientativo e deve ser conferido pelo órgão municipal competente antes do protocolo ou início da atividade.', 8, true, 4);
+    adicionarTexto('Desenvolvido por Humberto Teixeira — matrícula 12900 — Secretaria de Meio Ambiente do Município de Bento Gonçalves.', 8, false, 4);
+    const totalPaginas = doc.getNumberOfPages();
+    for (let pagina = 1; pagina <= totalPaginas; pagina += 1) {
+      doc.setPage(pagina);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(`Página ${pagina} de ${totalPaginas}`, 195, 290, { align: 'right' });
+    }
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    setPdfUrl(URL.createObjectURL(doc.output('blob')));
+  };
+
+  const fecharPreviewPdf = () => {
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    setPdfUrl(null);
+  };
 
   // Cálculo de enquadramento
   const diagnostico = useMemo(() => {
@@ -153,6 +212,9 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm print:hidden">
+          <div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><div><p className="font-bold">Ferramenta Betha em desenvolvimento</p><p className="mt-1 leading-relaxed">Esta ferramenta está em desenvolvimento e pode conter falhas. Os resultados são orientativos e devem ser conferidos pelo órgão municipal competente antes do protocolo, do licenciamento ou do início da atividade.</p><p className="mt-2 text-xs font-semibold">Desenvolvido por Humberto Teixeira — matrícula 12900 — Secretaria de Meio Ambiente do Município de Bento Gonçalves.</p></div></div>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* Coluna Esquerda: Configurações, Busca e Seleção de CNAEs */}
@@ -633,6 +695,11 @@ export default function App() {
                     </div>
                   </div>
                 )}
+
+                <div className="flex flex-wrap items-center justify-end gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 print:hidden">
+                  <div className="mr-auto text-xs text-emerald-900"><strong>Relatório completo:</strong><br />gere uma pré-visualização em PDF com o resultado desta consulta.</div>
+                  <button onClick={gerarRelatorioPdf} className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800"><Download className="h-4 w-4" /> Gerar relatório em PDF</button>
+                </div>
               </>
             )}
 
@@ -643,8 +710,20 @@ export default function App() {
       {/* Footer */}
       <footer className="mt-12 bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500 print:hidden">
         <p>Prefeitura Municipal de Bento Gonçalves • Secretaria de Desenvolvimento Econômico • Sala do Empreendedor</p>
-        <p className="mt-1">Sistema Integrado à REDESIM, Lei da Liberdade Econômica e Código Tributário Municipal (LC 183/2013)</p>
+        <p className="mt-1">Sistema Integrado à REDESIM, Lei da Liberdade Econômica e Código Tributário Municipal (LC 183/2013)</p><p className="mt-2">Ferramenta Betha em desenvolvimento • Responsável: Humberto Teixeira, matrícula 12900 • Secretaria de Meio Ambiente</p>
       </footer>
+
+      {pdfUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+          <div className="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <div><h2 className="font-bold text-slate-900">Pré-visualização do relatório PDF</h2><p className="text-xs text-slate-500">Confira o conteúdo antes de baixar o arquivo.</p></div>
+              <div className="flex items-center gap-2"><a href={pdfUrl} download="relatorio-redesim-bento-goncalves.pdf" className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"><Download className="h-4 w-4" /> Baixar PDF</a><button onClick={fecharPreviewPdf} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Fechar pré-visualização"><X className="h-5 w-5" /></button></div>
+            </div>
+            <iframe title="Pré-visualização do relatório" src={pdfUrl} className="min-h-0 w-full flex-1" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
