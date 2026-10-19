@@ -164,7 +164,7 @@ export default function App() {
       });
     });
 
-    texto += `\n---\nSala do Empreendedor de Bento Gonçalves - Tel: (54) 3055-7032`;
+    texto += `\n---\nPrefeitura Municipal de Bento Gonçalves`;
 
     navigator.clipboard.writeText(texto);
     setCopiado(true);
@@ -198,14 +198,7 @@ export default function App() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-emerald-100 bg-emerald-900/60 p-3 rounded-lg border border-emerald-700/50">
-              <MapPin className="w-4 h-4 text-emerald-300 shrink-0" />
-              <div>
-                <p className="font-semibold text-white">Sala do Empreendedor</p>
-                <p>Rua 10 de Novembro, 190, fundos - Cidade Alta</p>
-                <p className="flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" /> (54) 3055-7032</p>
-              </div>
-            </div>
+
           </div>
         </div>
       </header>
@@ -709,7 +702,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="mt-12 bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500 print:hidden">
-        <p>Prefeitura Municipal de Bento Gonçalves • Sala do Empreendedor</p>
+        <p>Prefeitura Municipal de Bento Gonçalves</p>
         <p className="mt-1">Sistema Integrado à REDESIM, Lei da Liberdade Econômica e Código Tributário Municipal (LC 183/2013)</p><p className="mt-2">Ferramenta Betha em desenvolvimento • Responsável: Humberto Teixeira, matrícula 12900 • Secretaria de Meio Ambiente</p>
       </footer>
 
