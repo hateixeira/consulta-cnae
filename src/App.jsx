@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { jsPDF } from 'jspdf';
 import cnaesData from './data/cnaes.json';
 import cnaeAmbientalData from './data/cnaeAmbiental.json';
@@ -35,20 +35,26 @@ export default function App() {
   const [copiado, setCopiado] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [simulacaoAmbiental, setSimulacaoAmbiental] = useState(null);
+  const handleSimulacaoChange = useCallback((dados) => { setSimulacaoAmbiental(dados); }, []);
 
   // Filtragem de CNAEs
   const cnaesFiltrados = useMemo(() => {
-    if (!busca || busca.trim().length < 2) return [];
-    const termo = busca.toLowerCase().trim();
-    const cleanTermo = termo.replace(/\D/g, '');
+    const raw = busca?.trim();
+    if (!raw || raw.length < 2) return [];
+    const termo = raw.toLowerCase();
+    const cleanTermo = raw.replace(/\D/g, '');
+    const resultados = [];
 
-    return cnaesData.filter((item) => {
-      const codigo = String(item.clean_code ?? '');
-      const descricao = String(item.descricao ?? '');
-      const matchCodigo = cleanTermo.length > 0 && codigo.includes(cleanTermo);
-      const matchDesc = descricao.toLowerCase().includes(termo);
-      return matchCodigo || matchDesc;
-    }).slice(0, 15);
+    for (let i = 0; i < cnaesData.length; i += 1) {
+      const item = cnaesData[i];
+      const cod = item.clean_code || '';
+      const desc = item.descricao || '';
+      if ((cleanTermo && cod.includes(cleanTermo)) || desc.toLowerCase().includes(termo)) {
+        resultados.push(item);
+        if (resultados.length >= 15) break;
+      }
+    }
+    return resultados;
   }, [busca]);
 
   // Adicionar CNAE à seleção
@@ -662,7 +668,7 @@ export default function App() {
                   cnaesSelecionados={cnaesSelecionados}
                   correlacoes={correlacoesAmbientais}
                   urm={diagnostico.tributario.valorUrm}
-                  onSimulacaoChange={setSimulacaoAmbiental}
+                  onSimulacaoChange={handleSimulacaoChange}
                 />
 
                 {/* Checklist de Documentação Exigida */}

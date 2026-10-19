@@ -58,26 +58,35 @@ export default function AmbientalSimulator({ ativo, correlacoes = [], urm = 187.
     return { ...enquadramento, ...taxa, valorInformado: valorNumerico };
   }, [codramSelecionado, metrica, tipoLicenca, pronaf, urm]);
 
+  const ultimoEnviadoRef = React.useRef(null);
   React.useEffect(() => {
-    if (onSimulacaoChange) {
-      if (resultado && codramSelecionado) {
-        onSimulacaoChange({
-          codram: codramSelecionado.cod,
-          nome: codramSelecionado.nome,
-          potencial: codramSelecionado.pot,
-          unidade: codramSelecionado.unidade,
-          metrica: metrica,
-          tipoLicenca: tipoLicenca,
-          porte: resultado.porte,
-          faixa: resultado.faixa,
-          competencia: resultado.competencia,
-          excedeMunicipal: resultado.excedeMunicipal,
-          quantidadeUrm: resultado.quantidadeUrm,
-          valorReais: resultado.valorReais,
-          status: resultado.status,
-          pronaf: pronaf
-        });
-      } else {
+    if (!onSimulacaoChange) return;
+
+    if (resultado && codramSelecionado) {
+      const payload = {
+        codram: codramSelecionado.cod,
+        nome: codramSelecionado.nome,
+        potencial: codramSelecionado.pot,
+        unidade: codramSelecionado.unidade,
+        metrica: metrica,
+        tipoLicenca: tipoLicenca,
+        porte: resultado.porte,
+        faixa: resultado.faixa,
+        competencia: resultado.competencia,
+        excedeMunicipal: resultado.excedeMunicipal,
+        quantidadeUrm: resultado.quantidadeUrm,
+        valorReais: resultado.valorReais,
+        status: resultado.status,
+        pronaf: pronaf
+      };
+      const serializado = JSON.stringify(payload);
+      if (ultimoEnviadoRef.current !== serializado) {
+        ultimoEnviadoRef.current = serializado;
+        onSimulacaoChange(payload);
+      }
+    } else {
+      if (ultimoEnviadoRef.current !== null) {
+        ultimoEnviadoRef.current = null;
         onSimulacaoChange(null);
       }
     }
