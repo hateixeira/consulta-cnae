@@ -1,5 +1,5 @@
-// Matriz de taxas ambientais importada da calculadora CONSEMA 556.
-// Os valores são múltiplos de URM e devem ser homologados/atualizados pela Prefeitura.
+// Matriz de taxas ambientais conforme Lei Complementar Municipal nº 183/2013 (Art. 235).
+// Valores fixados em múltiplos de URM (Unidade de Referência Municipal).
 export const TAXAS_AMBIENTAIS = {
   LP: {
     'Mínimo': { Baixo: 1.85, Médio: 2.20, Alto: 2.97 },
@@ -28,7 +28,7 @@ export const TAXAS_AMBIENTAIS = {
   DECL: 0.63
 };
 
-function parseLimiteFaixa(texto) {
+export function parseLimiteFaixa(texto) {
   if (!texto) return null;
   if (/demais|todos os portes|único/i.test(texto)) return Infinity;
   const numeros = texto.match(/\d[\d.,]*/g);
@@ -39,24 +39,77 @@ function parseLimiteFaixa(texto) {
   return Number.isFinite(valor) ? valor : null;
 }
 
-export function classificarPorteAmbiental(valor, faixas) {
+export function classificarPorteAmbiental(valor, faixas, limiteMunicipalTexto = null) {
   const portes = ['Não Incidência', 'Mínimo', 'Pequeno', 'Médio', 'Grande', 'Excepcional'];
   let encontrouFaixaNumerica = false;
+  let porteEncontrado = null;
+  let faixaEncontrada = null;
+
   for (let index = 0; index < (faixas || []).length; index += 1) {
     const faixa = faixas[index];
     if (!faixa || /observar a descrição/i.test(faixa)) continue;
     const limite = parseLimiteFaixa(faixa);
     if (limite === null) continue;
-    if (limite === Infinity || valor <= limite) return { porte: portes[index], faixa };
+    if (limite === Infinity || valor <= limite) {
+      porteEncontrado = portes[index];
+      faixaEncontrada = faixa;
+      break;
+    }
     encontrouFaixaNumerica = true;
   }
-  if (encontrouFaixaNumerica) return { porte: 'Fora da faixa tabelada', faixa: 'Valor acima das faixas numéricas publicadas no Anexo.' };
-  return { porte: 'Conferir norma', faixa: 'A fonte oficial orienta conferir a descrição da atividade.' };
+
+  if (!porteEncontrado) {
+    if (encontrouFaixaNumerica) {
+      porteEncontrado = 'Excepcional';
+      faixaEncontrada = 'Acima da última faixa delimitada';
+    } else {
+      return {
+        porte: 'Conferir norma',
+        faixa: 'A fonte oficial orienta conferir a descrição da atividade.',
+        competencia: 'Municipal (SMMAM)',
+        excedeMunicipal: false
+      };
+    }
+  }
+
+  // Verifica competência municipal de Bento Gonçalves (Decreto 10.819/2021)
+  let excedeMunicipal = false;
+  let competencia = 'Municipal (SMMAM)';
+  if (limiteMunicipalTexto) {
+    const limiteMun = parseLimiteFaixa(limiteMunicipalTexto);
+    if (limiteMun !== null && limiteMun !== Infinity && valor > limiteMun) {
+      excedeMunicipal = true;
+      competencia = 'Estadual (FEPAM - acima da delegação municipal)';
+    }
+  }
+
+  return {
+    porte: porteEncontrado,
+    faixa: faixaEncontrada,
+    competencia,
+    excedeMunicipal,
+    limiteMunicipalTexto
+  };
 }
 
-export function calcularTaxaAmbiental({ tipoLicenca, porte, potencial, pronaf = false, urm }) {
-  if (porte === 'Não Incidência' || porte === 'Fora da faixa tabelada' || porte === 'Conferir norma') return { quantidadeUrm: 0, valorReais: 0, status: porte };
-  const quantidadeUrm = tipoLicenca === 'DECL' ? TAXAS_AMBIENTAIS.DECL : pronaf ? TAXAS_AMBIENTAIS[tipoLicenca]?.PRONAF : TAXAS_AMBIENTAIS[tipoLicenca]?.[porte]?.[potencial];
-  if (typeof quantidadeUrm !== 'number') return { quantidadeUrm: 0, valorReais: 0, status: 'Conferir norma' };
-  return { quantidadeUrm, valorReais: quantidadeUrm * urm, status: 'Calculada' };
+export function calcularTaxaAmbiental({ tipoLicenca, porte, potencial, pronaf = false, urm = 187.03 }) {
+  if (porte === 'Não Incidência' || porte === 'Conferir norma') {
+    return { quantidadeUrm: 0, valorReais: 0, status: porte };
+  }
+
+  const quantidadeUrm = tipoLicenca === 'DECL'
+    ? TAXAS_AMBIENTAIS.DECL
+    : pronaf
+      ? TAXAS_AMBIENTAIS[tipoLicenca]?.PRONAF
+      : TAXAS_AMBIENTAIS[tipoLicenca]?.[porte]?.[potencial];
+
+  if (typeof quantidadeUrm !== 'number') {
+    return { quantidadeUrm: 0, valorReais: 0, status: 'Conferir norma' };
+  }
+
+  return {
+    quantidadeUrm,
+    valorReais: quantidadeUrm * urm,
+    status: 'Calculada'
+  };
 }
