@@ -58,5 +58,4 @@ Acesse em seu navegador: `http://localhost:5173`
 ## 🏢 Realização e Apoio
 
 - **Prefeitura Municipal de Bento Gonçalves**
-- **Secretaria Municipal de Desenvolvimento Econômico**
 - **Sala do Empreendedor de Bento Gonçalves**

@@ -709,7 +709,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="mt-12 bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500 print:hidden">
-        <p>Prefeitura Municipal de Bento Gonçalves • Secretaria de Desenvolvimento Econômico • Sala do Empreendedor</p>
+        <p>Prefeitura Municipal de Bento Gonçalves • Sala do Empreendedor</p>
         <p className="mt-1">Sistema Integrado à REDESIM, Lei da Liberdade Econômica e Código Tributário Municipal (LC 183/2013)</p><p className="mt-2">Ferramenta Betha em desenvolvimento • Responsável: Humberto Teixeira, matrícula 12900 • Secretaria de Meio Ambiente</p>
       </footer>
 
