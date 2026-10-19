@@ -38,6 +38,26 @@ export default function AmbientalSimulator({ ativo, correlacoes = [], urm = 187.
   }, [buscaCodram, vinculados]);
 
 
+
+
+  const resultado = useMemo(() => {
+    if (!codramSelecionado || !metrica || Number(metrica) <= 0) return null;
+    const valorNumerico = Number(metrica);
+    const enquadramento = classificarPorteAmbiental(
+      valorNumerico,
+      codramSelecionado.faixas,
+      codramSelecionado.limiteMunicipalTexto
+    );
+    const taxa = calcularTaxaAmbiental({
+      tipoLicenca,
+      porte: enquadramento.porte,
+      potencial: codramSelecionado.pot,
+      pronaf,
+      urm
+    });
+    return { ...enquadramento, ...taxa, valorInformado: valorNumerico };
+  }, [codramSelecionado, metrica, tipoLicenca, pronaf, urm]);
+
   React.useEffect(() => {
     if (onSimulacaoChange) {
       if (resultado && codramSelecionado) {
@@ -62,24 +82,6 @@ export default function AmbientalSimulator({ ativo, correlacoes = [], urm = 187.
       }
     }
   }, [resultado, codramSelecionado, metrica, tipoLicenca, pronaf, onSimulacaoChange]);
-
-  const resultado = useMemo(() => {
-    if (!codramSelecionado || !metrica || Number(metrica) <= 0) return null;
-    const valorNumerico = Number(metrica);
-    const enquadramento = classificarPorteAmbiental(
-      valorNumerico,
-      codramSelecionado.faixas,
-      codramSelecionado.limiteMunicipalTexto
-    );
-    const taxa = calcularTaxaAmbiental({
-      tipoLicenca,
-      porte: enquadramento.porte,
-      potencial: codramSelecionado.pot,
-      pronaf,
-      urm
-    });
-    return { ...enquadramento, ...taxa, valorInformado: valorNumerico };
-  }, [codramSelecionado, metrica, tipoLicenca, pronaf, urm]);
 
   if (!ativo) return null;
   const classes = [...new Set(correlacoes.map((item) => item.meioAmbiente).filter(Boolean))];

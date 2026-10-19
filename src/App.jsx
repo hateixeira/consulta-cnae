@@ -107,19 +107,26 @@ export default function App() {
     adicionarTexto(`URM: R$ ${diagnostico.tributario.valorUrm.toFixed(2)} | EIV/EII: ${diagnostico.sujeitoEiv ? 'Sujeito à análise conforme Anexo 9.1' : 'Sem enquadramento específico na tabela consultada'}`);
     y += 2;
     adicionarTexto('TAXA E ENQUADRAMENTO DO LICENCIAMENTO AMBIENTAL (LC 183/2013)', 11, true);
-    if (simulacaoAmbiental && simulacaoAmbiental.status === 'Calculada') {
+    if (simulacaoAmbiental && (simulacaoAmbiental.status === 'Calculada' || simulacaoAmbiental.quantidadeUrm > 0)) {
       adicionarTexto(`• Atividade CODRAM: ${simulacaoAmbiental.codram} — ${simulacaoAmbiental.nome}`);
       adicionarTexto(`• Métrica declarada: ${simulacaoAmbiental.metrica} (${simulacaoAmbiental.unidade}) | Potencial Poluidor: ${simulacaoAmbiental.potencial}`);
       adicionarTexto(`• Porte enquadrado: Porte ${simulacaoAmbiental.porte} (Faixa CONSEMA: ${simulacaoAmbiental.faixa})`);
-      adicionarTexto(`• Tipo de licença: ${simulacaoAmbiental.tipoLicenca} | Modalidade PRONAF: ${simulacaoAmbiental.pronaf ? 'Sim' : 'Não'}`);
+      adicionarTexto(`• Tipo de licença: ${simulacaoAmbiental.tipoLicenca} (LP, LI ou LO — não existe Licença Ambiental Simplificada)`);
       adicionarTexto(`• Competência de licenciamento: ${simulacaoAmbiental.competencia}`);
-      adicionarTexto(`• Taxa ambiental estimada: ${simulacaoAmbiental.quantidadeUrm.toFixed(2)} URM — R$ ${simulacaoAmbiental.valorReais.toFixed(2)}`, 9, true);
+      adicionarTexto(`• VALOR DA TAXA AMBIENTAL: ${simulacaoAmbiental.quantidadeUrm.toFixed(2)} URM — R$ ${simulacaoAmbiental.valorReais.toFixed(2)}`, 10, true);
       if (simulacaoAmbiental.excedeMunicipal) {
-        adicionarTexto('  [ALERTA DE COMPETÊNCIA]: O porte informado ultrapassa o limite delegado ao Município pelo Decreto 10.819/2021. O licenciamento tramita perante a FEPAM (estadual).');
+        adicionarTexto('  [ALERTA DE COMPETÊNCIA]: A métrica informada ultrapassa o limite delegado ao Município pelo Decreto 10.819/2021. O licenciamento tramita perante a FEPAM (estadual).');
       }
     } else if (necessitaAmbientalOficial && tipoEstabelecimento === 'ponto_fixo') {
-      adicionarTexto('• Atividade passível de licenciamento ambiental (M/M1/M2).');
-      adicionarTexto('• Simulação da taxa: informe a métrica/área no simulador da tela para cálculo específico por porte e valor em URM.');
+      adicionarTexto('• Atividade passível de licenciamento ambiental (M/M1/M2 conforme Decreto 10.819/2021).');
+      adicionarTexto('• Tabela de valores de referência para Licença de Operação (LO) em Bento Gonçalves (LC 183/2013, URM R$ 187,03):');
+      adicionarTexto('    - Porte Mínimo: 2,51 URM (Baixo: R$ 469,45) | 4,24 URM (Médio: R$ 793,01) | 6,60 URM (Alto: R$ 1.234,40)');
+      adicionarTexto('    - Porte Pequeno: 5,03 URM (Baixo: R$ 940,76) | 8,63 URM (Médio: R$ 1.614,07) | 13,51 URM (Alto: R$ 2.526,78)');
+      adicionarTexto('    - Porte Médio: 8,80 URM (Baixo: R$ 1.645,86) | 16,33 URM (Médio: R$ 3.054,20) | 28,60 URM (Alto: R$ 5.349,06)');
+      adicionarTexto('    - Porte Grande: 15,08 URM (Baixo: R$ 2.820,41) | 31,73 URM (Médio: R$ 5.934,47) | 61,60 URM (Alto: R$ 11.521,05)');
+      adicionarTexto('    - Porte Excepcional: 23,56 URM (Baixo: R$ 4.406,43) | 57,20 URM (Médio: R$ 10.698,12) | 123,51 URM (Alto: R$ 23.099,08)');
+      adicionarTexto('    - PRONAF / Agricultura Familiar: 1,10 URM (R$ 205,73)');
+      adicionarTexto('    - Nota: No município de Bento Gonçalves não existe Licença Ambiental Simplificada (LAS). As modalidades são LP, LI, LO, LOR ou Declaração.');
     } else {
       adicionarTexto('• Atividade dispensada ou não incidente de licenciamento ambiental municipal.');
     }
