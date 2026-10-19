@@ -95,7 +95,7 @@ export default function App() {
     };
     adicionarTexto('RELATÓRIO DE CONSULTA — REDESIM BENTO GONÇALVES', 14, true, 6);
     adicionarTexto('Ferramenta Betha em desenvolvimento — resultado sujeito a conferência oficial.', 9, true);
-    adicionarTexto('Desenvolvido por Humberto Teixeira — matrícula 12900 — Secretaria de Meio Ambiente do Município de Bento Gonçalves.');
+    adicionarTexto('Desenvolvido por Humberto Teixeira — matrícula 12900 — Setor de Licenciamento Ambiental da Secretaria Municipal de Meio Ambiente de Bento Gonçalves.');
     adicionarTexto(`Emissão: ${new Date().toLocaleString('pt-BR')}`, 8);
     adicionarTexto(`Modalidade: ${tipoEstabelecimento === 'ponto_fixo' ? 'Ponto Fixo' : 'Ponto de Referência'}`);
     adicionarTexto(`Classificação geral: ${diagnostico.tituloRisco}`, 10, true);
@@ -119,7 +119,7 @@ export default function App() {
     });
     y += 2;
     adicionarTexto('AVISO: Esta é uma ferramenta Betha em desenvolvimento e pode conter falhas. O resultado é orientativo e deve ser conferido pelo órgão municipal competente antes do protocolo ou início da atividade.', 8, true, 4);
-    adicionarTexto('Desenvolvido por Humberto Teixeira — matrícula 12900 — Secretaria de Meio Ambiente do Município de Bento Gonçalves.', 8, false, 4);
+    adicionarTexto('Desenvolvido por Humberto Teixeira — matrícula 12900 — Setor de Licenciamento Ambiental da Secretaria Municipal de Meio Ambiente de Bento Gonçalves.', 8, false, 4);
     const totalPaginas = doc.getNumberOfPages();
     for (let pagina = 1; pagina <= totalPaginas; pagina += 1) {
       doc.setPage(pagina);
@@ -180,6 +180,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       {/* Top Header */}
+      <div className="bg-emerald-950 text-emerald-200 border-b border-emerald-900/80 px-4 py-2 text-xs print:hidden">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+          <p><span className="font-bold text-white">Sistema desenvolvido por Humberto Teixeira</span> (Matrícula 12900) · Setor de Licenciamento Ambiental — Secretaria Municipal de Meio Ambiente (SMMAM) — Bento Gonçalves/RS</p>
+        </div>
+      </div>
       <header className="bg-emerald-800 text-white shadow-md border-b border-emerald-900 print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -212,7 +217,7 @@ export default function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm print:hidden">
-          <div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><div><p className="font-bold">Ferramenta Betha em desenvolvimento</p><p className="mt-1 leading-relaxed">Esta ferramenta está em desenvolvimento e pode conter falhas. Os resultados são orientativos e devem ser conferidos pelo órgão municipal competente antes do protocolo, do licenciamento ou do início da atividade.</p><p className="mt-2 text-xs font-semibold">Desenvolvido por Humberto Teixeira — matrícula 12900 — Secretaria de Meio Ambiente do Município de Bento Gonçalves.</p></div></div>
+          <div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><div><p className="font-bold">Ferramenta Betha em desenvolvimento</p><p className="mt-1 leading-relaxed">Esta ferramenta está em desenvolvimento e pode conter falhas. Os resultados são orientativos e devem ser conferidos pelo órgão municipal competente antes do protocolo, do licenciamento ou do início da atividade.</p><p className="mt-2 text-xs font-semibold">Desenvolvido por Humberto Teixeira — matrícula 12900 — Setor de Licenciamento Ambiental da Secretaria Municipal de Meio Ambiente de Bento Gonçalves.</p></div></div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
