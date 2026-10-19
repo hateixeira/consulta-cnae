@@ -6,7 +6,7 @@ import { calcularTaxaAmbiental, classificarPorteAmbiental } from '../data/ambien
 const normalizar = (texto = '') => texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ');
 const codramPorCodigo = new Map(codrams.map((item) => [item.cod.replace(',', '-'), item]));
 
-export default function AmbientalSimulator({ ativo, correlacoes = [], urm = 187.03 }) {
+export default function AmbientalSimulator({ ativo, correlacoes = [], urm = 187.03, onSimulacaoChange }) {
   const [buscaCodram, setBuscaCodram] = useState('');
   const [codramSelecionado, setCodramSelecionado] = useState(null);
   const [metrica, setMetrica] = useState('');
@@ -36,6 +36,32 @@ export default function AmbientalSimulator({ ativo, correlacoes = [], urm = 187.
     if (!termo) return vinculados;
     return vinculados.filter((item) => normalizar(`${item.cod} ${item.nome} ${item.unidade} ${item.cnae} ${item.descricaoCnae}`).includes(termo));
   }, [buscaCodram, vinculados]);
+
+
+  React.useEffect(() => {
+    if (onSimulacaoChange) {
+      if (resultado && codramSelecionado) {
+        onSimulacaoChange({
+          codram: codramSelecionado.cod,
+          nome: codramSelecionado.nome,
+          potencial: codramSelecionado.pot,
+          unidade: codramSelecionado.unidade,
+          metrica: metrica,
+          tipoLicenca: tipoLicenca,
+          porte: resultado.porte,
+          faixa: resultado.faixa,
+          competencia: resultado.competencia,
+          excedeMunicipal: resultado.excedeMunicipal,
+          quantidadeUrm: resultado.quantidadeUrm,
+          valorReais: resultado.valorReais,
+          status: resultado.status,
+          pronaf: pronaf
+        });
+      } else {
+        onSimulacaoChange(null);
+      }
+    }
+  }, [resultado, codramSelecionado, metrica, tipoLicenca, pronaf, onSimulacaoChange]);
 
   const resultado = useMemo(() => {
     if (!codramSelecionado || !metrica || Number(metrica) <= 0) return null;

@@ -34,6 +34,7 @@ export default function App() {
   const [respostasPerguntas, setRespostasPerguntas] = useState({});
   const [copiado, setCopiado] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [simulacaoAmbiental, setSimulacaoAmbiental] = useState(null);
 
   // Filtragem de CNAEs
   const cnaesFiltrados = useMemo(() => {
@@ -94,7 +95,8 @@ export default function App() {
       y += blocos.length * espacamento;
     };
     adicionarTexto('RELATÓRIO DE CONSULTA — REDESIM BENTO GONÇALVES', 14, true, 6);
-    adicionarTexto('Ferramenta Betha em desenvolvimento — resultado sujeito a conferência oficial.', 9, true);
+    adicionarTexto('OBSERVAÇÃO IMPORTANTE: SISTEMA EM VERSÃO BETHA / EM DESENVOLVIMENTO — PODE CONTER FALHAS E ERROS.', 9, true, 5);
+    adicionarTexto('Todos os valores e documentos são referenciais e devem ser confirmados oficialmente junto à Prefeitura antes de qualquer protocolo ou pagamento.', 8, false, 4);
     adicionarTexto('Desenvolvido por Humberto Teixeira — matrícula 12900 — Setor de Licenciamento Ambiental da Secretaria Municipal de Meio Ambiente de Bento Gonçalves.');
     adicionarTexto(`Emissão: ${new Date().toLocaleString('pt-BR')}`, 8);
     adicionarTexto(`Modalidade: ${tipoEstabelecimento === 'ponto_fixo' ? 'Ponto Fixo' : 'Ponto de Referência'}`);
@@ -103,6 +105,24 @@ export default function App() {
     adicionarTexto(`TFLIF: ${diagnostico.tributario.isMei ? 'Isento (MEI)' : `R$ ${diagnostico.tributario.valorTflif.toFixed(2)} — ${diagnostico.tributario.qtdUrm} URMs`}`);
     adicionarTexto(`Taxa sanitária: ${(diagnostico.temRiscoII_Visa || diagnostico.temRiscoIII_Visa) ? `1 URM — R$ ${diagnostico.tributario.valorUrm.toFixed(2)}` : 'Não indicada pela classificação da tabela VISA'}`);
     adicionarTexto(`URM: R$ ${diagnostico.tributario.valorUrm.toFixed(2)} | EIV/EII: ${diagnostico.sujeitoEiv ? 'Sujeito à análise conforme Anexo 9.1' : 'Sem enquadramento específico na tabela consultada'}`);
+    y += 2;
+    adicionarTexto('TAXA E ENQUADRAMENTO DO LICENCIAMENTO AMBIENTAL (LC 183/2013)', 11, true);
+    if (simulacaoAmbiental && simulacaoAmbiental.status === 'Calculada') {
+      adicionarTexto(`• Atividade CODRAM: ${simulacaoAmbiental.codram} — ${simulacaoAmbiental.nome}`);
+      adicionarTexto(`• Métrica declarada: ${simulacaoAmbiental.metrica} (${simulacaoAmbiental.unidade}) | Potencial Poluidor: ${simulacaoAmbiental.potencial}`);
+      adicionarTexto(`• Porte enquadrado: Porte ${simulacaoAmbiental.porte} (Faixa CONSEMA: ${simulacaoAmbiental.faixa})`);
+      adicionarTexto(`• Tipo de licença: ${simulacaoAmbiental.tipoLicenca} | Modalidade PRONAF: ${simulacaoAmbiental.pronaf ? 'Sim' : 'Não'}`);
+      adicionarTexto(`• Competência de licenciamento: ${simulacaoAmbiental.competencia}`);
+      adicionarTexto(`• Taxa ambiental estimada: ${simulacaoAmbiental.quantidadeUrm.toFixed(2)} URM — R$ ${simulacaoAmbiental.valorReais.toFixed(2)}`, 9, true);
+      if (simulacaoAmbiental.excedeMunicipal) {
+        adicionarTexto('  [ALERTA DE COMPETÊNCIA]: O porte informado ultrapassa o limite delegado ao Município pelo Decreto 10.819/2021. O licenciamento tramita perante a FEPAM (estadual).');
+      }
+    } else if (necessitaAmbientalOficial && tipoEstabelecimento === 'ponto_fixo') {
+      adicionarTexto('• Atividade passível de licenciamento ambiental (M/M1/M2).');
+      adicionarTexto('• Simulação da taxa: informe a métrica/área no simulador da tela para cálculo específico por porte e valor em URM.');
+    } else {
+      adicionarTexto('• Atividade dispensada ou não incidente de licenciamento ambiental municipal.');
+    }
     y += 3;
     adicionarTexto('ATIVIDADES SELECIONADAS', 11, true);
     cnaesSelecionados.forEach((c, index) => adicionarTexto(`${index === 0 ? '[PRINCIPAL] ' : ''}${c.cnae} — ${c.descricao}`));
@@ -118,7 +138,7 @@ export default function App() {
       cat.itens.forEach(item => adicionarTexto(`• ${item.nome}${item.obrigatorio === false ? ' (não solicitado)' : ''}: ${item.detalhe}`));
     });
     y += 2;
-    adicionarTexto('AVISO: Esta é uma ferramenta Betha em desenvolvimento e pode conter falhas. O resultado é orientativo e deve ser conferido pelo órgão municipal competente antes do protocolo ou início da atividade.', 8, true, 4);
+    adicionarTexto('AVISO LEGAL: Esta é uma ferramenta Betha em desenvolvimento e PODE CONTER ERROS OU FALHAS. O resultado gerado possui caráter exclusivamente orientativo e preliminar, não substituindo a análise técnica e fiscal do órgão municipal competente.', 8, true, 4);
     adicionarTexto('Desenvolvido por Humberto Teixeira — matrícula 12900 — Setor de Licenciamento Ambiental da Secretaria Municipal de Meio Ambiente de Bento Gonçalves.', 8, false, 4);
     const totalPaginas = doc.getNumberOfPages();
     for (let pagina = 1; pagina <= totalPaginas; pagina += 1) {
@@ -635,6 +655,7 @@ export default function App() {
                   cnaesSelecionados={cnaesSelecionados}
                   correlacoes={correlacoesAmbientais}
                   urm={diagnostico.tributario.valorUrm}
+                  onSimulacaoChange={setSimulacaoAmbiental}
                 />
 
                 {/* Checklist de Documentação Exigida */}
